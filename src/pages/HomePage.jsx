@@ -173,6 +173,31 @@ function HomePage() {
     fileInputRef.current.click();
   };
 
+  const handleDownloadAudio = () => {
+    if (uploadedFile && audioUrl) {
+      const a = document.createElement('a');
+      a.href = audioUrl;
+      a.download = uploadedFile.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
+
+  const handleDownloadMusic = () => {
+    // This would trigger download of the translated/processed version
+    // For now, it downloads the same audio file
+    // You can modify this later to download a different processed version
+    if (uploadedFile && audioUrl) {
+      const a = document.createElement('a');
+      a.href = audioUrl;
+      a.download = `translated_${uploadedFile.name}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
+
   const isLyricActive = (lyric) => currentTime >= lyric.startTime && currentTime < lyric.endTime;
 
   const LanguageSelector = ({ label, value, onChange, isOpen, toggleOpen }) => (
@@ -388,6 +413,31 @@ function HomePage() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Download Buttons - Only shown when file is uploaded */}
+        {uploadedFile && (
+          <div className="w-full max-w-6xl mb-12 flex justify-center gap-6">
+            <button
+              onClick={handleDownloadAudio}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 rounded-lg flex items-center gap-3 transition-colors shadow-lg"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span className="font-semibold text-lg">Download Audio</span>
+            </button>
+
+            <button
+              onClick={handleDownloadMusic}
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg flex items-center gap-3 transition-colors shadow-lg"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+              </svg>
+              <span className="font-semibold text-lg">Download Music</span>
+            </button>
           </div>
         )}
       </div>
