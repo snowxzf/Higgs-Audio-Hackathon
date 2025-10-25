@@ -200,6 +200,11 @@ function HomePage() {
 
     return (
         <div className="min-h-screen bg-gray-200 relative">
+            {/* Logo Popup */}
+            <div className="logo-popup">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="Logo" />
+            </div>
+
             {uploadedFile && (
                 <div className="absolute left-0 right-0 flex items-center justify-center opacity-40 pointer-events-none" style={{ top: '140px', height: '200px' }}>
                     <div className="flex items-center justify-center gap-1 h-48">
