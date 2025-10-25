@@ -197,7 +197,7 @@ function HomePage() {
         <div className="min-h-screen bg-gray-200 relative">
             {/* Logo Popup */}
             <div className="logo-popup">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="Logo" />
+                <img src={logo} alt="Cadence AI Logo" className="w-32 h-auto" />
             </div>
 
             {uploadedFile && (
