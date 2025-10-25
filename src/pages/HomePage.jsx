@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react'
-import Navbar from '../components/Navbar'
 
 function HomePage() {
     const [uploadedFile, setUploadedFile] = useState(null)
