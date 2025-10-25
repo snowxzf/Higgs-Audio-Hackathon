@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+.logo-popup img {
+    width: 500px;
+    animation: popIn 1.2s ease;
+}
 /* Logo Popup Animation */
 .logo-popup {
     position: fixed;
@@ -14,10 +18,7 @@
     animation: fadeOut 2.5s ease forwards 1.5s;
 }
 
-.logo-popup img {
-    width: 500px;
-    animation: popIn 1.2s ease;
-}
+
 
 @keyframes popIn {
     0% {
