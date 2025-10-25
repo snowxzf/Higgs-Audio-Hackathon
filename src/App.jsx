@@ -5,15 +5,11 @@ import About from './pages/About'
 import Karaoke from './pages/Karaoke'
 import Friends from './pages/Friends'
 import Generation from './pages/Generation'
-import Navbar from './components/Navbar' // ✅ make sure this path is correct
 
 function App() {
     return (
         <Router>
-            {/* ✅ Navbar stays visible on all pages */}
-            <Navbar />
-
-            {/* ✅ Route system for each page */}
+            {/* ✅ Route system for each page - each page has its own navbar */}
             <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/about" element={<About />} />

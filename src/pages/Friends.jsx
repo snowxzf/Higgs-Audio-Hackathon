@@ -66,7 +66,7 @@ export default function Friends() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-200">
       <Navbar />
       <div className="p-8">
         <h1 className="text-3xl font-bold mb-6 text-black">My Friends</h1>
