@@ -5,7 +5,7 @@ import About from './pages/About'
 import Karaoke from './pages/Karaoke'
 import Friends from './pages/Friends'
 import Generation from './pages/Generation'
-import Navbar from './components/Navbar' // ✅ make sure this path is correct
+//import Navbar from './components/Navbar' // ✅ make sure this path is correct
 
 function App() {
     return (
