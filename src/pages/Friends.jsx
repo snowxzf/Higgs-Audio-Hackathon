@@ -1,20 +1,36 @@
-import React from 'react'
-import Navbar from '../components/Navbar'
+import React from "react";
 
-function Friends() {
-    return (
-        <div className="min-h-screen bg-gray-200">
-            <Navbar />
-            <div className="container mx-auto px-8 py-12">
-                <h1 className="text-4xl font-bold text-center mb-8">Friends</h1>
-                <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-8">
-                    <p className="text-lg text-gray-700 text-center">
-                        Connect with friends and share your favorite translated songs!
-                    </p>
-                </div>
-            </div>
-        </div>
-    )
-}
+const Friendship = () => {
+  return (
+    <div className="friendship-page">
+      <header>
+        <h1>Friendship</h1>
+      </header>
 
-export default Friends
+      <nav>
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="friendship.html">Friendship</a>
+        <a href="karaoke.html">Karaoke</a>
+        <a href="songs.html">My Songs</a>
+      </nav>
+
+      <div className="friendship-container">
+        <h2>Your Friends</h2>
+        <ul>
+          <li>
+            <a href="mailto:alice@example.com">Alice</a>
+          </li>
+          <li>
+            <a href="mailto:bob@example.com">Bob</a>
+          </li>
+          <li>
+            <a href="mailto:charlie@example.com">Charlie</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+export default Friendship;
