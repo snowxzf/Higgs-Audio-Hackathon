@@ -6,7 +6,8 @@ function Karaoke() {
   const [recordings, setRecordings] = useState([]);
   const [bgGradient, setBgGradient] = useState('from-gray-900 via-gray-800 to-gray-900');
   const [currentTime, setCurrentTime] = useState(0);
-  
+  const [targetGradient, setTargetGradient] = useState('from-gray-900 via-gray-800 to-gray-900');
+
   const canvasRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const analyserRef = useRef(null);
@@ -16,6 +17,7 @@ function Karaoke() {
   const chunksRef = useRef([]);
   const animationIdRef = useRef(null);
   const streamRef = useRef(null);
+  const gradientTransitionRef = useRef(null);
 
   // Sample lyrics for demonstration
   const originalLyrics = [
@@ -33,6 +35,22 @@ function Karaoke() {
   ];
 
   useEffect(() => {
+    if (targetGradient !== bgGradient) {
+      if (gradientTransitionRef.current) {
+        clearTimeout(gradientTransitionRef.current);
+      }
+      gradientTransitionRef.current = setTimeout(() => {
+        setBgGradient(targetGradient);
+      }, 50);
+    }
+    return () => {
+      if (gradientTransitionRef.current) {
+        clearTimeout(gradientTransitionRef.current);
+      }
+    };
+  }, [targetGradient, bgGradient]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -43,7 +61,7 @@ function Karaoke() {
 
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
-    
+
     return () => {
       window.removeEventListener('resize', resizeCanvas);
       if (streamRef.current) {
@@ -57,8 +75,10 @@ function Karaoke() {
 
   useEffect(() => {
     if (isRecording) {
+      const startTime = Date.now();
       const interval = setInterval(() => {
-        setCurrentTime(prev => prev + 0.1);
+        const elapsed = (Date.now() - startTime) / 1000;
+        setCurrentTime(elapsed);
       }, 100);
       return () => clearInterval(interval);
     } else {
@@ -68,8 +88,6 @@ function Karaoke() {
 
   const drawVisualizer = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    
     const ctx = canvas.getContext('2d');
     const analyser = analyserRef.current;
     const dataArray = dataArrayRef.current;
@@ -78,48 +96,38 @@ function Karaoke() {
 
     animationIdRef.current = requestAnimationFrame(drawVisualizer);
     analyser.getByteFrequencyData(dataArray);
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Calculate number of bars to display across the width
-    const numBars = 150;
-    const barWidth = canvas.width / numBars;
-    const barSpacing = 2;
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+    const barWidth = (WIDTH / dataArray.length) * 2.5;
+    let x = 0;
     let avg = 0;
 
-    // Draw frequency bars from bottom
-    for (let i = 0; i < numBars; i++) {
-      const dataIndex = Math.floor((i / numBars) * dataArray.length);
-      const barHeight = (dataArray[dataIndex] / 255) * (canvas.height * 0.4); // Max 40% of canvas height
-      avg += dataArray[dataIndex];
-      
-      const x = i * barWidth;
-      
-      // Create gradient for each bar (blue to cyan)
-      const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - barHeight);
-      gradient.addColorStop(0, '#1e90ff');
-      gradient.addColorStop(0.5, '#00bfff');
-      gradient.addColorStop(1, '#87ceeb');
-      
-      ctx.fillStyle = gradient;
-      ctx.fillRect(x, canvas.height - barHeight, barWidth - barSpacing, barHeight);
-      
-      // Add a glow effect
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = '#00bfff';
-      ctx.fillRect(x, canvas.height - barHeight, barWidth - barSpacing, barHeight);
-      ctx.shadowBlur = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+      const barHeight = dataArray[i];
+      avg += barHeight;
+      const r = barHeight + 25 * (i / dataArray.length);
+      const g = 250 * (i / dataArray.length);
+      const b = 50;
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight);
+      x += barWidth + 1;
     }
 
-    // Update background based on average frequency
-    avg /= numBars;
+    avg /= dataArray.length;
+    let newGradient;
     if (avg < 60) {
-      setBgGradient('from-blue-900 via-blue-700 to-blue-900');
+      newGradient = 'from-blue-900 via-blue-700 to-blue-900';
     } else if (avg < 120) {
-      setBgGradient('from-yellow-600 via-orange-500 to-yellow-600');
+      newGradient = 'from-yellow-600 via-orange-500 to-yellow-600';
     } else {
-      setBgGradient('from-red-700 via-red-900 to-red-700');
+      newGradient = 'from-red-700 via-red-900 to-red-700';
+    }
+
+    if (newGradient !== targetGradient) {
+      setTargetGradient(newGradient);
     }
   };
 
@@ -137,26 +145,24 @@ function Karaoke() {
       }
       setIsRecording(false);
       setBgGradient('from-gray-900 via-gray-800 to-gray-900');
+      setTargetGradient('from-gray-900 via-gray-800 to-gray-900');
     } else {
       // Start recording
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
-        
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioCtx.createMediaStreamSource(stream);
-        const analyserNode = audioCtx.createAnalyser();
-        analyserNode.fftSize = 512; // Increased for better sensitivity
-        analyserNode.smoothingTimeConstant = 0.8;
-        
-        source.connect(analyserNode);
-        
-        audioCtxRef.current = audioCtx;
-        sourceRef.current = source;
-        analyserRef.current = analyserNode;
-        dataArrayRef.current = new Uint8Array(analyserNode.frequencyBinCount);
 
         mediaRecorderRef.current = new MediaRecorder(stream);
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        sourceRef.current = audioCtxRef.current.createMediaStreamSource(stream);
+        analyserRef.current = audioCtxRef.current.createAnalyser();
+        analyserRef.current.fftSize = 256;
+        const bufferLength = analyserRef.current.frequencyBinCount;
+        dataArrayRef.current = new Uint8Array(bufferLength);
+        sourceRef.current.connect(analyserRef.current);
+
+        drawVisualizer();
+
         chunksRef.current = [];
 
         mediaRecorderRef.current.ondataavailable = (e) => {
@@ -174,7 +180,6 @@ function Karaoke() {
         };
 
         mediaRecorderRef.current.start();
-        drawVisualizer(); // Start drawing immediately
         setIsRecording(true);
       } catch (error) {
         console.error('Error accessing microphone:', error);
@@ -199,7 +204,7 @@ function Karaoke() {
   const isLyricActive = (lyric) => currentTime >= lyric.startTime && currentTime < lyric.endTime;
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br ${bgGradient} transition-all duration-1000`}>
+    <div className={`min-h-screen bg-gradient-to-br ${bgGradient} transition-all duration-[2000ms] ease-in-out`}>
       {/* Navbar */}
       <div className="relative z-30 bg-white">
         <Navbar />
@@ -208,7 +213,7 @@ function Karaoke() {
       {/* Visualizer Area */}
       <div className="relative flex items-center justify-center" style={{ height: 'calc(100vh - 80px)' }}>
         <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full z-0" />
-        
+
         {/* Content Container with Lyrics on Sides */}
         <div className="relative z-10 flex items-center justify-center gap-8 max-w-7xl mx-auto px-8">
           {/* Original Lyrics - Left Side */}
@@ -220,11 +225,10 @@ function Karaoke() {
               {originalLyrics.map((lyric, index) => (
                 <p
                   key={index}
-                  className={`text-base transition-all duration-300 ${
-                    isLyricActive(lyric)
+                  className={`text-base transition-all duration-300 ${isLyricActive(lyric)
                       ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
                       : 'text-gray-600'
-                  }`}
+                    }`}
                 >
                   {lyric.text}
                 </p>
@@ -236,11 +240,10 @@ function Karaoke() {
           <div className="flex-shrink-0">
             <button
               onClick={handleRecord}
-              className={`w-20 h-20 rounded-full border-none cursor-pointer transition-all duration-300 flex items-center justify-center ${
-                isRecording 
-                  ? 'bg-red-900 shadow-2xl' 
+              className={`w-20 h-20 rounded-full border-none cursor-pointer transition-all duration-300 flex items-center justify-center ${isRecording
+                  ? 'bg-red-900 shadow-2xl'
                   : 'bg-red-600 shadow-xl hover:bg-red-700'
-              } ${isRecording ? 'animate-pulse' : ''}`}
+                } ${isRecording ? 'animate-pulse' : ''}`}
             >
               {isRecording ? (
                 <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -264,11 +267,10 @@ function Karaoke() {
               {translatedLyrics.map((lyric, index) => (
                 <p
                   key={index}
-                  className={`text-base transition-all duration-300 ${
-                    isLyricActive(lyric)
+                  className={`text-base transition-all duration-300 ${isLyricActive(lyric)
                       ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
                       : 'text-gray-600'
-                  }`}
+                    }`}
                 >
                   {lyric.text}
                 </p>
