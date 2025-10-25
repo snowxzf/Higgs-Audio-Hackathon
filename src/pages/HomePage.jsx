@@ -5,8 +5,6 @@ import logo from '../assets/Cadence_AI.png'
 function HomePage() {
     const [uploadedFile, setUploadedFile] = useState(null)
     const [isPlaying, setIsPlaying] = useState(false)
-    const [previousUploads, setPreviousUploads] = useState([])
-    const [selectedSongs, setSelectedSongs] = useState(new Set())
     const [userName, setUserName] = useState('')
     const [audioUrl, setAudioUrl] = useState(null)
     const [currentLanguage, setCurrentLanguage] = useState('English')
@@ -15,6 +13,7 @@ function HomePage() {
     const [currentTime, setCurrentTime] = useState(0)
     const [audioContext, setAudioContext] = useState(null)
     const [analyser, setAnalyser] = useState(null)
+    const [showLogoPopup, setShowLogoPopup] = useState(false)
     const audioRef = useRef(null)
     const fileInputRef = useRef(null)
     const animationFrameRef = useRef(null)
@@ -53,6 +52,15 @@ function HomePage() {
         { text: "Y véalas traducidas en tiempo real", startTime: 6, endTime: 9 },
         { text: "Disfruta de la música en cualquier idioma", startTime: 9, endTime: 12 }
     ]
+
+    // Check if this is the first visit
+    useEffect(() => {
+        const hasVisited = localStorage.getItem('hasVisitedHomePage')
+        if (!hasVisited) {
+            setShowLogoPopup(true)
+            localStorage.setItem('hasVisitedHomePage', 'true')
+        }
+    }, [])
 
     useEffect(() => {
         if (uploadedFile) {
@@ -129,13 +137,16 @@ function HomePage() {
             const url = URL.createObjectURL(file)
             setAudioUrl(url)
 
+            // Save to localStorage for Previous Songs page
             const newUpload = {
                 id: Date.now(),
                 name: file.name,
                 uploadDate: new Date().toLocaleDateString(),
-                duration: '0:00'
+                audioUrl: url
             }
-            setPreviousUploads(prev => [newUpload, ...prev])
+
+            const existingUploads = JSON.parse(localStorage.getItem('uploadedSongs') || '[]')
+            localStorage.setItem('uploadedSongs', JSON.stringify([newUpload, ...existingUploads]))
         }
     }
 
@@ -148,23 +159,6 @@ function HomePage() {
             }
             setIsPlaying(!isPlaying)
         }
-    }
-
-    const toggleSelectSong = (id) => {
-        setSelectedSongs(prev => {
-            const newSet = new Set(prev)
-            if (newSet.has(id)) {
-                newSet.delete(id)
-            } else {
-                newSet.add(id)
-            }
-            return newSet
-        })
-    }
-
-    const deleteSelectedSongs = () => {
-        setPreviousUploads(prev => prev.filter(song => !selectedSongs.has(song.id)))
-        setSelectedSongs(new Set())
     }
 
     const isLyricActive = (lyric) => {
@@ -203,7 +197,7 @@ function HomePage() {
         <div className="min-h-screen bg-gray-200 relative">
             {/* Logo Popup */}
             <div className="logo-popup">
-                <img src={logo} alt="Cadence AI Logo" className="w-32 h-auto" />
+                <img src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="Logo" />
             </div>
 
             {uploadedFile && (
@@ -325,8 +319,8 @@ function HomePage() {
                                         <p
                                             key={index}
                                             className={`text-lg transition-all duration-300 ${isLyricActive(lyric)
-                                                    ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
-                                                    : 'text-gray-600'
+                                                ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
+                                                : 'text-gray-600'
                                                 }`}
                                         >
                                             {lyric.text}
@@ -344,8 +338,8 @@ function HomePage() {
                                         <p
                                             key={index}
                                             className={`text-lg transition-all duration-300 ${isLyricActive(lyric)
-                                                    ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
-                                                    : 'text-gray-600'
+                                                ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
+                                                : 'text-gray-600'
                                                 }`}
                                         >
                                             {lyric.text}
@@ -356,52 +350,6 @@ function HomePage() {
                         </div>
                     </div>
                 )}
-
-                <div className="w-full max-w-4xl">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-4">
-                            <h2 className="text-2xl font-bold text-black">Previous Uploads</h2>
-                            {selectedSongs.size > 0 && (
-                                <button
-                                    onClick={deleteSelectedSongs}
-                                    className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                    Delete ({selectedSongs.size})
-                                </button>
-                            )}
-                        </div>
-                        <span className="text-sm text-gray-600">Select</span>
-                    </div>
-
-                    <div className="space-y-3">
-                        {previousUploads.map((song) => (
-                            <div
-                                key={song.id}
-                                className="flex items-center gap-4 bg-green-400 hover:bg-green-500 transition-colors rounded-lg p-4 shadow"
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={selectedSongs.has(song.id)}
-                                    onChange={() => toggleSelectSong(song.id)}
-                                    className="w-6 h-6 cursor-pointer accent-purple-600"
-                                />
-                                <div className="flex-1">
-                                    <div className="font-medium text-black">{song.name}</div>
-                                    <div className="text-sm text-gray-700">Uploaded: {song.uploadDate}</div>
-                                </div>
-                            </div>
-                        ))}
-
-                        {previousUploads.length === 0 && (
-                            <div className="text-center py-8 text-gray-600">
-                                No previous uploads yet. Upload your first audio file!
-                            </div>
-                        )}
-                    </div>
-                </div>
             </div>
         </div>
     )

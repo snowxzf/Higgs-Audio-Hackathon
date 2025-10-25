@@ -26,6 +26,12 @@ function Navbar() {
                             <div className="absolute inset-0 bg-gray-400 rounded-full opacity-30 -m-2"></div>
                         )}
                     </Link>
+                    <Link to="/previous" className={`text-black hover:text-gray-700 transition-colors relative`}>
+                        <span className="relative z-10">Previous Songs</span>
+                        {isActive('/previous') && (
+                            <div className="absolute inset-0 bg-gray-400 rounded-full opacity-30 -m-2"></div>
+                        )}
+                    </Link>
                     <Link to="/karaoke" className={`text-black hover:text-gray-700 transition-colors relative`}>
                         <span className="relative z-10">Karaoke</span>
                         {isActive('/karaoke') && (
@@ -39,11 +45,12 @@ function Navbar() {
                         )}
                     </Link>
                     <Link to="/generation" className={`text-black hover:text-gray-700 transition-colors relative`}>
-                        <span className="relative z-10">Generation</span>
+                        <span className="relative z-10">Song Generation</span>
                         {isActive('/generation') && (
                             <div className="absolute inset-0 bg-gray-400 rounded-full opacity-30 -m-2"></div>
                         )}
                     </Link>
+
                 </div>
             </div>
             <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full transition-colors">
