@@ -204,6 +204,7 @@ function HomePage() {
     </div>
   );
 
+<<<<<<< Updated upstream
   return (
     <div className="min-h-screen bg-gray-200 relative">
       {/* Logo Popup */}
@@ -215,6 +216,166 @@ function HomePage() {
             alt="Cadence AI Logo"
             className="w-32 h-auto animate-popIn"
           />
+=======
+    return (
+        <div className="min-h-screen bg-gray-200 relative">
+            {/* Logo Popup */}
+            <div className="logo-popup">
+                <img src={logo} alt="Cadence AI Logo" className="w-32 h-auto" />
+            </div>
+
+            {uploadedFile && (
+                <div className="absolute left-0 right-0 flex items-center justify-center opacity-40 pointer-events-none" style={{ top: '140px', height: '200px' }}>
+                    <div className="flex items-center justify-center gap-1 h-48">
+                        {waveformBars.map((bar, i) => (
+                            <div
+                                key={i}
+                                className="w-1 bg-gradient-to-t rounded-full transition-all duration-75"
+                                style={{
+                                    height: `${bar.height}%`,
+                                    background: `linear-gradient(to top, ${moodColors[currentMood][0]}, ${moodColors[currentMood][1]}, ${moodColors[currentMood][2]})`
+                                }}
+                            />
+                        ))}
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
+                        <button
+                            onClick={handlePlayPause}
+                            className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full transition-colors shadow-lg"
+                        >
+                            {isPlaying ? (
+                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                                </svg>
+                            ) : (
+                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <Navbar />
+
+            <div className="relative z-10 flex flex-col items-center justify-center px-8" style={{ marginTop: uploadedFile ? '10px' : '48px' }}>
+                <div className={`transition-all duration-500 ${uploadedFile ? 'mb-2' : 'mb-8'}`}>
+                    <input
+                        type="text"
+                        placeholder="Candence AI"
+                        value={userName}
+                        onChange={(e) => setUserName(e.target.value)}
+                        className={`font-bold text-center bg-transparent border-none outline-none placeholder-black text-black transition-all duration-500 ${uploadedFile ? 'text-xl' : 'text-3xl'
+                            }`}
+                    />
+                </div>
+
+                <div className={`w-full max-w-md transition-all duration-500 ${uploadedFile ? 'mb-2' : 'mb-6'}`}>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="audio/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                    />
+                    {uploadedFile ? (
+                        <div className="w-full bg-green-400 bg-opacity-50 backdrop-blur-sm rounded-lg flex items-center justify-center gap-3 shadow-lg py-2 px-4">
+                            <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            <span className="font-medium text-black text-sm flex-1 text-center">
+                                {uploadedFile.name}
+                            </span>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => fileInputRef.current.click()}
+                            className="w-full bg-green-400 hover:bg-green-500 transition-colors rounded-lg py-8 flex items-center justify-center gap-4 shadow-lg"
+                        >
+                            <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            <span className="font-medium text-black text-xl">
+                                Upload Audio File
+                            </span>
+                        </button>
+                    )}
+                </div>
+
+                {!uploadedFile && (
+                    <div className="flex items-center gap-4 mb-12">
+                        <LanguageSelector
+                            label="Current Language"
+                            value={currentLanguage}
+                            onChange={setCurrentLanguage}
+                            isOpen={showLanguageDropdown.current}
+                            toggleOpen={() => setShowLanguageDropdown(prev => ({ ...prev, current: !prev.current }))}
+                        />
+                        <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                        <LanguageSelector
+                            label="Translated Language"
+                            value={translatedLanguage}
+                            onChange={setTranslatedLanguage}
+                            isOpen={showLanguageDropdown.translated}
+                            toggleOpen={() => setShowLanguageDropdown(prev => ({ ...prev, translated: !prev.translated }))}
+                        />
+                    </div>
+                )}
+
+                {uploadedFile && (
+                    <div className="mb-48">
+                        <audio ref={audioRef} src={audioUrl} onEnded={() => setIsPlaying(false)} crossOrigin="anonymous" />
+                    </div>
+                )}
+
+                {uploadedFile && (
+                    <div className="w-full max-w-6xl mb-12">
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
+                                <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-purple-600 pb-2">
+                                    Original ({currentLanguage})
+                                </h3>
+                                <div className="space-y-4">
+                                    {originalLyrics.map((lyric, index) => (
+                                        <p
+                                            key={index}
+                                            className={`text-lg transition-all duration-300 ${isLyricActive(lyric)
+                                                ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
+                                                : 'text-gray-600'
+                                                }`}
+                                        >
+                                            {lyric.text}
+                                        </p>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
+                                <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-green-500 pb-2">
+                                    Translated ({translatedLanguage})
+                                </h3>
+                                <div className="space-y-4">
+                                    {translatedLyrics.map((lyric, index) => (
+                                        <p
+                                            key={index}
+                                            className={`text-lg transition-all duration-300 ${isLyricActive(lyric)
+                                                ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
+                                                : 'text-gray-600'
+                                                }`}
+                                        >
+                                            {lyric.text}
+                                        </p>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+>>>>>>> Stashed changes
         </div>
       )}
 
