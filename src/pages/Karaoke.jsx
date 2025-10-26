@@ -118,7 +118,7 @@ function Karaoke() {
     let avg = 0;
 
     for (let i = 0; i < dataArray.length; i++) {
-      const barHeight = dataArray[i];
+      const barHeight = dataArray[i] * 3;
       avg += barHeight;
       const r = barHeight + 25 * (i / dataArray.length);
       const g = 250 * (i / dataArray.length);
