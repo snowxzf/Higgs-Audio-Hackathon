@@ -32,6 +32,7 @@ function Karaoke() {
   const [backgroundUrl, setBackgroundUrl] = useState(null);
   const [isBackgroundPlaying, setIsBackgroundPlaying] = useState(false);
   const [shouldPlayDuringRecording, setShouldPlayDuringRecording] = useState(false);
+  const [backgroundAudioTime, setBackgroundAudioTime] = useState(0);
   const backgroundAudioRef = useRef(null);
 
   // Load lyrics and background audio from localStorage on component mount
@@ -41,6 +42,16 @@ function Karaoke() {
     const storedCurrentLanguage = localStorage.getItem('currentLanguage') || 'English';
     const storedTranslatedLanguage = localStorage.getItem('translatedLanguage') || 'Spanish';
     const storedBackgroundUrl = localStorage.getItem('backgroundUrl');
+    
+    console.log('Loading lyrics from localStorage:', storedOriginalLyrics);
+    console.log('First lyric sample:', storedOriginalLyrics[0]);
+    if (storedOriginalLyrics[0]) {
+      console.log('First lyric timestamps:', {
+        text: storedOriginalLyrics[0].text,
+        startTime: storedOriginalLyrics[0].startTime,
+        endTime: storedOriginalLyrics[0].endTime
+      });
+    }
     
     if (storedOriginalLyrics.length > 0) {
       setOriginalLyrics(storedOriginalLyrics);
@@ -52,6 +63,7 @@ function Karaoke() {
       // Load background audio URL if available
       if (storedBackgroundUrl) {
         setBackgroundUrl(storedBackgroundUrl);
+        console.log('Background URL loaded:', storedBackgroundUrl);
       }
     } else {
       setHasLyrics(false);
@@ -109,6 +121,22 @@ function Karaoke() {
       setCurrentTime(0);
     }
   }, [isRecording]);
+
+  // Track background audio time for synchronized lyrics
+  useEffect(() => {
+    if (isBackgroundPlaying && backgroundAudioRef.current) {
+      const interval = setInterval(() => {
+        if (backgroundAudioRef.current) {
+          const currentTime = backgroundAudioRef.current.currentTime;
+          setBackgroundAudioTime(currentTime);
+          console.log('Background audio time:', currentTime.toFixed(2));
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    } else {
+      setBackgroundAudioTime(0);
+    }
+  }, [isBackgroundPlaying]);
 
   const drawVisualizer = () => {
     const canvas = canvasRef.current;
@@ -239,7 +267,21 @@ function Karaoke() {
     setRecordings(prev => prev.filter(rec => rec.id !== id));
   };
 
-  const isLyricActive = (lyric) => currentTime >= lyric.startTime && currentTime < lyric.endTime;
+  const isLyricActive = (lyric) => {
+    // Use background audio time if it's playing, otherwise use recording time
+    const timeToUse = isBackgroundPlaying ? backgroundAudioTime : currentTime;
+    // Use 'start' and 'end' if available, otherwise fall back to 'startTime' and 'endTime'
+    const start = lyric.startTime !== undefined ? lyric.startTime : lyric.start;
+    const end = lyric.endTime !== undefined ? lyric.endTime : lyric.end;
+    const isActive = timeToUse >= start && timeToUse < end;
+    
+    // Debug logging
+    if (isActive) {
+      console.log('Active lyric:', lyric.text, 'Time:', timeToUse.toFixed(2), 'Start:', start, 'End:', end);
+    }
+    
+    return isActive;
+  };
 
   return (
     <div className={`min-h-screen bg-gradient-to-br ${bgGradient} transition-all duration-[2000ms] ease-in-out`}>
@@ -344,7 +386,7 @@ function Karaoke() {
                 <p
                   key={index}
                   className={`text-base transition-all duration-300 ${isLyricActive(lyric)
-                      ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
+                      ? 'text-purple-600 font-bold text-lg scale-110 bg-purple-50 p-3 rounded shadow-md'
                       : 'text-gray-600'
                     }`}
                 >
@@ -386,7 +428,7 @@ function Karaoke() {
                 <p
                   key={index}
                   className={`text-base transition-all duration-300 ${isLyricActive(lyric)
-                      ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
+                      ? 'text-green-600 font-bold text-lg scale-110 bg-green-50 p-3 rounded shadow-md'
                       : 'text-gray-600'
                     }`}
                 >

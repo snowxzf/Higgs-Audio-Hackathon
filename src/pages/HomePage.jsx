@@ -244,15 +244,20 @@ function HomePage() {
         if (transcription && transcription !== "TRANSCRIPTION_FAILED") {
           // Create synchronized lyrics
           const createTimedLyrics = (text, duration) => {
-            const lines = text.split('\n').filter(line => line.trim());
-            if (!lines.length) return [];
+            // Split by both newlines and sentence boundaries for better synchronization
+            const sentences = text
+              .replace(/\n+/g, '. ') // Replace newlines with periods for sentence splitting
+              .split(/(?<=[.!?])\s+/) // Split on sentence boundaries (periods, exclamation, question marks)
+              .filter(line => line.trim().length > 0);
             
-            const timePerLine = duration / lines.length;
-            return lines.map((line, i) => ({
-              text: line.trim(),
-              start: i * timePerLine,
-              end: (i + 1) * timePerLine,
-              duration: timePerLine
+            if (!sentences.length) return [];
+            
+            const timePerSentence = duration / sentences.length;
+            return sentences.map((sentence, i) => ({
+              text: sentence.trim(),
+              start: i * timePerSentence,
+              end: (i + 1) * timePerSentence,
+              duration: timePerSentence
             }));
           };
           
