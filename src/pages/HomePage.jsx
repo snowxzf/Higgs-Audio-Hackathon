@@ -81,12 +81,9 @@ function HomePage() {
   const extractCleanTranslation = (fullText) => {
     if (!fullText) return { cleanTranslation: '', reasoning: '' };
     
-    // Look for content inside <think> or <think> tags
-    // Pattern: everything between <think> and </think> is reasoning, everything after is the translation
+    // First try to match <think> tags
     const thinkPattern = /<think>(.*?)<\/think>\s*(.*?)$/s;
-    const reasoningPattern = /<think>(.*?)<\/redacted_reasoning>\s*(.*?)$/s;
-    
-    let match = fullText.match(reasoningPattern);
+    let match = fullText.match(thinkPattern);
     if (match) {
       return {
         cleanTranslation: match[2].trim(),
@@ -94,7 +91,9 @@ function HomePage() {
       };
     }
     
-    match = fullText.match(thinkPattern);
+    // Then try <think> tags
+    const reasoningPattern = /<think>(.*?)<\/redacted_reasoning>\s*(.*?)$/s;
+    match = fullText.match(reasoningPattern);
     if (match) {
       return {
         cleanTranslation: match[2].trim(),
@@ -160,7 +159,7 @@ function HomePage() {
         console.log('Direct transcription response:', transcriptionData);
         
         // Process the transcription data
-        const { transcription, translated_transcription, detectedLanguage, duration } = transcriptionData;
+        const { transcription, translated_transcription, detectedLanguage, duration, vocals_path, background_path } = transcriptionData;
         
         if (transcription && transcription !== "TRANSCRIPTION_FAILED") {
           // Create synchronized lyrics
@@ -205,6 +204,22 @@ function HomePage() {
           setOriginalLyrics(originalLyrics);
           setTranslatedLyrics(translatedLyrics);
           setCurrentLanguage(currentLanguage);
+          
+          // Load separated audio files if paths are provided
+          if (vocals_path || background_path) {
+            // Extract filenames from paths
+            if (vocals_path) {
+              const vocalsFilename = vocals_path.split('/').pop();
+              setVocalsUrl(`http://localhost:3001/api/audio/vocals/${vocalsFilename}`);
+              console.log('Vocals URL:', `http://localhost:3001/api/audio/vocals/${vocalsFilename}`);
+            }
+            
+            if (background_path) {
+              const backgroundFilename = background_path.split('/').pop();
+              setBackgroundUrl(`http://localhost:3001/api/audio/background/${backgroundFilename}`);
+              console.log('Background URL:', `http://localhost:3001/api/audio/background/${backgroundFilename}`);
+            }
+          }
           
           console.log('Transcription completed:', {
             inputLanguage: currentLanguage,

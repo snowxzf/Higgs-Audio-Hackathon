@@ -179,6 +179,58 @@ app.post('/api/translate', async (req, res) => {
   }
 });
 
+// Endpoint to serve separated audio files
+app.get('/api/audio/:type/:filename', (req, res) => {
+  const { type, filename } = req.params;
+  
+  console.log(`Serving audio file: type=${type}, filename=${filename}`);
+  
+  // Only allow 'vocals' or 'background' as valid types
+  if (!['vocals', 'background'].includes(type)) {
+    return res.status(400).json({ error: 'Invalid audio type. Must be "vocals" or "background"' });
+  }
+  
+  // Find the audio file in the output directories
+  const possibleDirs = [
+    path.join(__dirname, 'output_stems', 'final'),
+    path.join(__dirname, 'output_stems', 'htdemucs'),
+    path.join(__dirname, 'output_stems'),
+    path.join(__dirname, 'backend', 'outputs', 'final'),
+  ];
+  
+  console.log(`Looking for file: ${filename}`);
+  console.log(`Searching in directories:`, possibleDirs);
+  
+  let audioPath = null;
+  for (const dir of possibleDirs) {
+    const fullPath = path.join(dir, filename);
+    console.log(`Checking: ${fullPath} (exists: ${fs.existsSync(fullPath)})`);
+    if (fs.existsSync(fullPath)) {
+      audioPath = fullPath;
+      console.log(`Found file at: ${audioPath}`);
+      break;
+    }
+  }
+  
+  if (!audioPath) {
+    console.log(`File not found: ${filename}`);
+    return res.status(404).json({ error: 'Audio file not found' });
+  }
+  
+  // Set appropriate headers for audio streaming
+  res.setHeader('Content-Type', 'audio/wav');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  
+  // Stream the file
+  const readStream = fs.createReadStream(audioPath);
+  readStream.pipe(res);
+  
+  readStream.on('error', (err) => {
+    console.error('Error reading audio file:', err);
+    res.status(500).json({ error: 'Error reading audio file' });
+  });
+});
+
 app.listen(port, () => {
   console.log(`Transcription API running on port ${port}`);
 });
