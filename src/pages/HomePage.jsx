@@ -244,21 +244,61 @@ function HomePage() {
         if (transcription && transcription !== "TRANSCRIPTION_FAILED") {
           // Create synchronized lyrics
           const createTimedLyrics = (text, duration) => {
-            // Split by both newlines and sentence boundaries for better synchronization
-            const sentences = text
-              .replace(/\n+/g, '. ') // Replace newlines with periods for sentence splitting
-              .split(/(?<=[.!?])\s+/) // Split on sentence boundaries (periods, exclamation, question marks)
-              .filter(line => line.trim().length > 0);
+            // Clean the text
+            let cleaned = text.replace(/\n+/g, ' ').trim();
+            
+            // Split on sentence boundaries, preserving the punctuation
+            const sentences = cleaned
+              .split(/(?<=[.!?])\s+/)
+              .filter(s => s.trim().length > 0)
+              .map(s => s.trim());
             
             if (!sentences.length) return [];
             
-            const timePerSentence = duration / sentences.length;
-            return sentences.map((sentence, i) => ({
-              text: sentence.trim(),
-              start: i * timePerSentence,
-              end: (i + 1) * timePerSentence,
-              duration: timePerSentence
-            }));
+            // Estimate time per sentence based on word count (assuming ~150 words per minute)
+            const wordsPerMinute = 150;
+            const timePerWord = 60 / wordsPerMinute;
+            
+            const timedLyrics = [];
+            let currentTime = 0;
+            
+            for (let i = 0; i < sentences.length; i++) {
+              const sentence = sentences[i];
+              const wordCount = sentence.split(/\s+/).length;
+              const sentenceDuration = wordCount * timePerWord;
+              
+              // Make sure we don't exceed the total duration
+              if (currentTime + sentenceDuration > duration) {
+                const remainingTime = duration - currentTime;
+                if (remainingTime > 0) {
+                  timedLyrics.push({
+                    text: sentence,
+                    start: currentTime,
+                    end: duration,
+                    duration: remainingTime
+                  });
+                }
+                break;
+              }
+              
+              timedLyrics.push({
+                text: sentence,
+                start: currentTime,
+                end: currentTime + sentenceDuration,
+                duration: sentenceDuration
+              });
+              
+              currentTime += sentenceDuration;
+            }
+            
+            // If we have remaining time, extend the last lyric
+            if (timedLyrics.length > 0 && currentTime < duration) {
+              const lastLyric = timedLyrics[timedLyrics.length - 1];
+              lastLyric.end = duration;
+              lastLyric.duration = duration - lastLyric.start;
+            }
+            
+            return timedLyrics;
           };
           
           const originalLyrics = createTimedLyrics(transcription, duration || 12);
@@ -490,6 +530,18 @@ function HomePage() {
   };
   
   const handleGoHome = () => {
+    // Clear localStorage first to prevent cached data from being loaded
+    localStorage.removeItem('uploadedFile');
+    localStorage.removeItem('audioUrl');
+    localStorage.removeItem('originalLyrics');
+    localStorage.removeItem('translatedLyrics');
+    localStorage.removeItem('analysisText');
+    localStorage.removeItem('vocalsUrl');
+    localStorage.removeItem('backgroundUrl');
+    localStorage.removeItem('currentLanguage');
+    localStorage.removeItem('translatedLanguage');
+    localStorage.removeItem('uploadedFileName');
+    
     // Reset all states to go back to upload page
     setUploadedFile(null);
     setAudioUrl(null);

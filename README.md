@@ -2,6 +2,12 @@
 
 A web application for translating music lyrics across languages with real-time karaoke functionality.
 
+## Prerequisites
+
+- Node.js (v14 or higher)
+- Python 3.8+ 
+- FFmpeg installed on your system
+
 ## Setup
 
 1. **Install Node.js dependencies:**
@@ -17,10 +23,14 @@ A web application for translating music lyrics across languages with real-time k
    ```
 
 3. **Set up environment variables:**
-   - Create a `.env` file in the project root
+   - Create a `.env` file in the project root (or use the existing `api_key.env`)
    - Add your OpenAI API key:
      ```
      OPENAI_API_KEY=your_api_key_here
+     ```
+   - Or copy `api_key.env` to `.env`:
+     ```bash
+     cp backend/utils/api_key.env .env
      ```
 
 ## Running the Application

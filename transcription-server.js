@@ -1,12 +1,16 @@
 import express from 'express';
 import multer from 'multer';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
 const port = 3001; // Use different port to avoid conflicts
@@ -67,13 +71,34 @@ app.post('/api/transcribe', upload.single('file'), async (req, res) => {
     if (inputLanguage) args.push(inputLanguage);
     if (outputLanguage) args.push(outputLanguage);
     
-    const pythonProcess = spawn('/Library/Frameworks/Python.framework/Versions/3.12/bin/python3', args, {
+    // Try to find Python executable
+    const possiblePythonPaths = [
+      'python3',
+      'python',
+      '/usr/bin/python3',
+      '/usr/bin/python',
+      '/Library/Frameworks/Python.framework/Versions/3.12/bin/python3',
+      '/opt/homebrew/bin/python3'
+    ];
+    
+    let pythonPath = 'python3'; // Default fallback
+    for (const candidate of possiblePythonPaths) {
+      try {
+        // Check if command exists by trying to run --version
+        execSync(`${candidate} --version`, { stdio: 'ignore' });
+        pythonPath = candidate;
+        break;
+      } catch (e) {
+        // Try next path
+      }
+    }
+    
+    const pythonProcess = spawn(pythonPath, args, {
       cwd: __dirname,
       env: { 
         ...process.env, 
         PYTHONPATH: path.join(__dirname, 'backend', 'utils'),
-        PATH: process.env.PATH + ':' + path.join(__dirname, 'higgs boson', 'venv', 'bin'),
-        OPENAI_API_KEY: 'bai-TRFeHvilHsLfnQV39kXs3716zP1fpEUID23KpL19MF3Ib6dz'
+        OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'bai-TRFeHvilHsLfnQV39kXs3716zP1fpEUID23KpL19MF3Ib6dz'
       }
     });
 
