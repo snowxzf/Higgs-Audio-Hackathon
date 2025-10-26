@@ -25,6 +25,51 @@ def get_audio_duration(file_path):
         return 0.0
 
 
+def translate_text(text, from_lang, to_lang):
+    """Translate text using a real translation API"""
+    try:
+        # Import OpenAI client for translation
+        import openai
+        from dotenv import load_dotenv
+        
+        # Load environment variables
+        load_dotenv()
+        
+        # Initialize OpenAI client
+        client = openai.OpenAI(
+            api_key=os.getenv('OPENAI_API_KEY'),
+            base_url="https://hackathon.boson.ai/v1"
+        )
+        
+        # Create translation prompt
+        translation_prompt = f"""Translate the following text from {from_lang} to {to_lang}. 
+        Keep the same meaning and tone.
+
+        Text to translate: {text}
+
+        Translation:"""
+        
+        # Call the translation API
+        response = client.chat.completions.create(
+            model="Qwen3-32B-thinking-Hackathon",
+            messages=[
+                {"role": "system", "content": "You are a professional translator. Translate the given text accurately while preserving the original meaning and tone."},
+                {"role": "user", "content": translation_prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.3
+        )
+        
+        translated_text = response.choices[0].message.content.strip()
+        print(f"Translation successful: {from_lang} -> {to_lang}", file=sys.stderr)
+        return translated_text
+        
+    except Exception as e:
+        print(f"Translation failed: {e}", file=sys.stderr)
+        # Fallback: return placeholder
+        return f"[Translation to {to_lang} failed] {text}"
+
+
 def transcribe_audio_file(file_path, input_language=None, output_language=None):
     """Transcribe audio file using the actual transcription functions"""
     try:
@@ -53,10 +98,16 @@ def transcribe_audio_file(file_path, input_language=None, output_language=None):
         # Use provided input language or default to "Unknown"
         detected_language = input_language if input_language else "Unknown"
         
+        # Translate if needed
+        translated_text = None
+        if output_language and output_language != detected_language:
+            translated_text = translate_text(transcription, detected_language, output_language)
+        
         # Return results
         result = {
             "success": True,
             "transcription": transcription,
+            "translated_transcription": translated_text,
             "detectedLanguage": detected_language,
             "duration": duration,
             "vocals_path": str(vocals_path) if vocals_path else None,

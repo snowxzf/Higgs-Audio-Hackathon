@@ -19,6 +19,9 @@ function HomePage() {
   const [originalLyrics, setOriginalLyrics] = useState([]);
   const [translatedLyrics, setTranslatedLyrics] = useState([]);
   const [detectedLanguage, setDetectedLanguage] = useState('Unknown');
+  const [analysisText, setAnalysisText] = useState('');
+  const [vocalsUrl, setVocalsUrl] = useState(null);
+  const [backgroundUrl, setBackgroundUrl] = useState(null);
   const audioRef = useRef(null);
   const fileInputRef = useRef(null);
   const animationFrameRef = useRef(null);
@@ -44,7 +47,68 @@ function HomePage() {
     'Telugu', 'Marathi', 'Gujarati', 'Punjabi', 'Malayalam', 'Kannada',
   ];
 
+  // Translation function using a real API
+  const translateText = async (text, fromLang, toLang) => {
+    try {
+      // Call the backend translation API
+      const response = await fetch('http://localhost:3001/api/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: text,
+          from_language: fromLang,
+          to_language: toLang
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.translated_text;
+      } else {
+        throw new Error('Translation API failed');
+      }
+    } catch (error) {
+      console.error('Translation error:', error);
+      // Fallback: return placeholder
+      return `[Translation to ${toLang} failed] ${text}`;
+    }
+  };
+
   // Process audio file using real transcription API
+  // Function to extract clean translation and reasoning from LLM output
+  const extractCleanTranslation = (fullText) => {
+    if (!fullText) return { cleanTranslation: '', reasoning: '' };
+    
+    // Look for content inside <think> or <think> tags
+    // Pattern: everything between <think> and </think> is reasoning, everything after is the translation
+    const thinkPattern = /<think>(.*?)<\/think>\s*(.*?)$/s;
+    const reasoningPattern = /<think>(.*?)<\/redacted_reasoning>\s*(.*?)$/s;
+    
+    let match = fullText.match(reasoningPattern);
+    if (match) {
+      return {
+        cleanTranslation: match[2].trim(),
+        reasoning: match[1].trim()
+      };
+    }
+    
+    match = fullText.match(thinkPattern);
+    if (match) {
+      return {
+        cleanTranslation: match[2].trim(),
+        reasoning: match[1].trim()
+      };
+    }
+    
+    // If no tags found, return the text as-is with no reasoning
+    return {
+      cleanTranslation: fullText.trim(),
+      reasoning: ''
+    };
+  };
+
   const processAudioFile = async (file) => {
     setIsProcessing(true);
     try {
@@ -96,7 +160,7 @@ function HomePage() {
         console.log('Direct transcription response:', transcriptionData);
         
         // Process the transcription data
-        const { transcription, detectedLanguage, duration } = transcriptionData;
+        const { transcription, translated_transcription, detectedLanguage, duration } = transcriptionData;
         
         if (transcription && transcription !== "TRANSCRIPTION_FAILED") {
           // Create synchronized lyrics
@@ -115,8 +179,27 @@ function HomePage() {
           
           const originalLyrics = createTimedLyrics(transcription, duration || 12);
           
-          // For now, use the same lyrics for translation (you can add translation later)
-          const translatedLyrics = originalLyrics; // This would be replaced with actual translation
+          // Use translated text from backend if available, otherwise translate on frontend
+          let translatedLyrics = originalLyrics;
+          if (translated_transcription) {
+            // Extract clean translation and reasoning from LLM output
+            const { cleanTranslation, reasoning } = extractCleanTranslation(translated_transcription);
+            translatedLyrics = createTimedLyrics(cleanTranslation, duration || 12);
+            setAnalysisText(reasoning);
+          } else if (translatedLanguage !== currentLanguage) {
+            try {
+              // Simple translation using a basic approach
+              const translatedText = await translateText(transcription, currentLanguage, translatedLanguage);
+              translatedLyrics = createTimedLyrics(translatedText, duration || 12);
+            } catch (translationError) {
+              console.log('Translation failed, using original lyrics:', translationError);
+              // If translation fails, show placeholder text
+              translatedLyrics = originalLyrics.map(lyric => ({
+                ...lyric,
+                text: `[${translatedLanguage} translation coming soon]`
+              }));
+            }
+          }
           
           setDetectedLanguage(currentLanguage);
           setOriginalLyrics(originalLyrics);
@@ -283,6 +366,46 @@ function HomePage() {
 
   const handleUploadAnother = () => {
     fileInputRef.current.click();
+  };
+
+  const handleDownloadAudio = () => {
+    // Download vocals
+    if (vocalsUrl) {
+      const a = document.createElement('a');
+      a.href = vocalsUrl;
+      a.download = `vocals_${uploadedFile.name}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else if (uploadedFile && audioUrl) {
+      // Fallback to original audio if vocals not available
+      const a = document.createElement('a');
+      a.href = audioUrl;
+      a.download = uploadedFile.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
+
+  const handleDownloadMusic = () => {
+    // Download background/instrumental
+    if (backgroundUrl) {
+      const a = document.createElement('a');
+      a.href = backgroundUrl;
+      a.download = `instrumental_${uploadedFile.name}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else if (uploadedFile && audioUrl) {
+      // Fallback to original audio if background not available
+      const a = document.createElement('a');
+      a.href = audioUrl;
+      a.download = `instrumental_${uploadedFile.name}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   };
 
   const isLyricActive = (lyric) => currentTime >= lyric.start && currentTime < lyric.end;
@@ -466,56 +589,96 @@ function HomePage() {
                 <p className="text-gray-600">Separating vocals, transcribing lyrics, and translating... (This may take 2-5 minutes)</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-6">
-                <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
-                  <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-purple-600 pb-2">
-                    Original ({detectedLanguage || currentLanguage})
-                  </h3>
-                  <div className="space-y-4">
-                    {originalLyrics.length > 0 ? (
-                      originalLyrics.map((lyric, index) => (
-                        <p
-                          key={index}
-                          className={`text-lg transition-all duration-300 ${
-                            isLyricActive(lyric)
-                              ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
-                              : 'text-gray-600'
-                          }`}
-                        >
-                          {lyric.text}
-                        </p>
-                      ))
-                    ) : (
-                      <p className="text-gray-500 italic">No lyrics available</p>
-                    )}
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
+                    <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-purple-600 pb-2">
+                      Original ({detectedLanguage || currentLanguage})
+                    </h3>
+                    <div className="space-y-4">
+                      {originalLyrics.length > 0 ? (
+                        originalLyrics.map((lyric, index) => (
+                          <p
+                            key={index}
+                            className={`text-lg transition-all duration-300 ${
+                              isLyricActive(lyric)
+                                ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
+                                : 'text-gray-600'
+                            }`}
+                          >
+                            {lyric.text}
+                          </p>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 italic">No lyrics available</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
+                    <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-green-500 pb-2">
+                      Translated ({translatedLanguage})
+                    </h3>
+                    <div className="space-y-4">
+                      {translatedLyrics.length > 0 ? (
+                        translatedLyrics.map((lyric, index) => (
+                          <p
+                            key={index}
+                            className={`text-lg transition-all duration-300 ${
+                              isLyricActive(lyric)
+                                ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
+                                : 'text-gray-600'
+                            }`}
+                          >
+                            {lyric.text}
+                          </p>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 italic">No translation available</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
-                  <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-green-500 pb-2">
-                    Translated (English)
-                  </h3>
-                  <div className="space-y-4">
-                    {translatedLyrics.length > 0 ? (
-                      translatedLyrics.map((lyric, index) => (
-                        <p
-                          key={index}
-                          className={`text-lg transition-all duration-300 ${
-                            isLyricActive(lyric)
-                              ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
-                              : 'text-gray-600'
-                          }`}
-                        >
-                          {lyric.text}
-                        </p>
-                      ))
-                    ) : (
-                      <p className="text-gray-500 italic">No translation available</p>
-                    )}
+                {analysisText && (
+                  <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
+                    <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-blue-500 pb-2">
+                      Analysis
+                    </h3>
+                    <div className="max-h-60 overflow-y-auto">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                        {analysisText}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Download Buttons - Only shown when file is uploaded */}
+        {uploadedFile && (
+          <div className="w-full max-w-6xl mb-12 flex justify-center gap-6">
+            <button
+              onClick={handleDownloadAudio}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 rounded-lg flex items-center gap-3 transition-colors shadow-lg"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span className="font-semibold text-lg">Download Audio</span>
+            </button>
+
+            <button
+              onClick={handleDownloadMusic}
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg flex items-center gap-3 transition-colors shadow-lg"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+              </svg>
+              <span className="font-semibold text-lg">Download Instrumental</span>
+            </button>
           </div>
         )}
       </div>

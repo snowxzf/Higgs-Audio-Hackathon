@@ -51,9 +51,9 @@ def separate_with_demucs(wav_path):
                     "--device", "cpu",
                     wav_path,
                     "-o", temp_output_dir
-                ], check=True, capture_output=True, text=True, timeout=300)
+                ], check=True, capture_output=True, text=True, timeout=30)
                 
-                print(f"Demucs processing completed successfully with {model_name}")
+                print(f"Demucs processing completed successfully with {model_name}", file=sys.stderr)
                 break
                 
             except subprocess.CalledProcessError as e:
@@ -64,13 +64,17 @@ def separate_with_demucs(wav_path):
                 else:
                     raise e
             except subprocess.TimeoutExpired:
-                print(f"Timeout with {model_name}, trying next model...")
+                print(f"Timeout with {model_name}, trying next model...", file=sys.stderr)
                 continue
         
     except Exception as e:
         print(f"All Demucs models failed: {e}", file=sys.stderr)
-        # Even if Demucs fails to save, the processing might have worked
-        # Let's check if the files were created
+        print("Demucs files not found, trying alternative approach...", file=sys.stderr)
+        try:
+            return separate_with_alternative_method(wav_path)
+        except Exception as e2:
+            print(f"Alternative method also failed: {e2}", file=sys.stderr)
+            return fallback_no_separation(wav_path)
         
     # Check for Demucs output files in different model directories
     base_name = os.path.splitext(os.path.basename(wav_path))[0]
@@ -86,7 +90,7 @@ def separate_with_demucs(wav_path):
         if os.path.exists(potential_vocals) and os.path.exists(potential_accompaniment):
             vocals_path = potential_vocals
             accompaniment_path = potential_accompaniment
-            print(f"Found separated files in {model_name} directory")
+            print(f"Found separated files in {model_name} directory", file=sys.stderr)
             break
     
     # Check if files exist, if not, try alternative approach
@@ -109,6 +113,29 @@ def separate_with_demucs(wav_path):
     print(f"Background music saved to: {final_accompaniment_path}", file=sys.stderr)
     
     return final_vocals_path, final_accompaniment_path
+
+def fallback_no_separation(wav_path):
+    """
+    Fallback method: if all separation methods fail, just copy the original file
+    as both vocals and background. This allows transcription to proceed.
+    """
+    print("Using fallback: copying original file as both vocals and background", file=sys.stderr)
+    
+    base_name = os.path.splitext(os.path.basename(wav_path))[0]
+    final_output_dir = os.path.join(OUTPUT_DIR, "final")
+    os.makedirs(final_output_dir, exist_ok=True)
+    
+    vocals_path = os.path.join(final_output_dir, f"{base_name}_vocals.wav")
+    background_path = os.path.join(final_output_dir, f"{base_name}_background.wav")
+    
+    # Copy the original file as both vocals and background
+    subprocess.run(["cp", wav_path, vocals_path], check=True)
+    subprocess.run(["cp", wav_path, background_path], check=True)
+    
+    print(f"Fallback: Vocals saved to: {vocals_path}", file=sys.stderr)
+    print(f"Fallback: Background saved to: {background_path}", file=sys.stderr)
+    
+    return vocals_path, background_path
 
 def separate_with_alternative_method(wav_path):
     """
@@ -147,7 +174,7 @@ def separate_with_alternative_method(wav_path):
     for approach in approaches:
         print(f"Trying: {approach['name']}", file=sys.stderr)
         try:
-            result = subprocess.run(approach["cmd"], check=True, capture_output=True, text=True, timeout=300)
+            result = subprocess.run(approach["cmd"], check=True, capture_output=True, text=True, timeout=30)
             print(f"Success with {approach['name']}!", file=sys.stderr)
             
             # Look for output files
@@ -183,14 +210,14 @@ def separate_with_alternative_method(wav_path):
                     return vocals_path, accompaniment_path
             
         except subprocess.CalledProcessError as e:
-            print(f"Failed: {approach['name']} - {e}")
+            print(f"Failed: {approach['name']} - {e}", file=sys.stderr)
             continue
         except subprocess.TimeoutExpired:
-            print(f"Timeout: {approach['name']}")
+            print(f"Timeout: {approach['name']}", file=sys.stderr)
             continue
     
     # If all Demucs approaches fail, try a simple center channel extraction
-    print("All Demucs approaches failed, trying center channel extraction...")
+    print("All Demucs approaches failed, trying center channel extraction...", file=sys.stderr)
     try:
         # Convert to stereo and try center channel extraction (simple but sometimes effective)
         subprocess.run([
@@ -205,20 +232,20 @@ def separate_with_alternative_method(wav_path):
             accompaniment_path, "-y"
         ], check=True)
         
-        print(f"Center channel extraction completed")
+        print(f"Center channel extraction completed", file=sys.stderr)
         print(f"Vocals saved to: {vocals_path}", file=sys.stderr)
         print(f"Background music saved to: {accompaniment_path}", file=sys.stderr)
         return vocals_path, accompaniment_path
         
     except Exception as e:
-        print(f"Center channel extraction failed: {e}")
+        print(f"Center channel extraction failed: {e}", file=sys.stderr)
     
     # Final fallback - simple copy
-    print("Using simple copy as final fallback...")
+    print("Using simple copy as final fallback...", file=sys.stderr)
     subprocess.run(["cp", wav_path, vocals_path], check=True)
     subprocess.run(["cp", wav_path, accompaniment_path], check=True)
     
-    print(f"Note: Using original audio as fallback")
+    print(f"Note: Using original audio as fallback", file=sys.stderr)
     print(f"Vocals saved to: {vocals_path}", file=sys.stderr)
     print(f"Background music saved to: {accompaniment_path}", file=sys.stderr)
     

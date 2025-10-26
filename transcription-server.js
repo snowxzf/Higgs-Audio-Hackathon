@@ -67,12 +67,13 @@ app.post('/api/transcribe', upload.single('file'), async (req, res) => {
     if (inputLanguage) args.push(inputLanguage);
     if (outputLanguage) args.push(outputLanguage);
     
-    const pythonProcess = spawn('python3', args, {
+    const pythonProcess = spawn('/Library/Frameworks/Python.framework/Versions/3.12/bin/python3', args, {
       cwd: __dirname,
       env: { 
         ...process.env, 
         PYTHONPATH: path.join(__dirname, 'backend', 'utils'),
-        PATH: process.env.PATH + ':' + path.join(__dirname, 'higgs boson', 'venv', 'bin')
+        PATH: process.env.PATH + ':' + path.join(__dirname, 'higgs boson', 'venv', 'bin'),
+        OPENAI_API_KEY: 'bai-TRFeHvilHsLfnQV39kXs3716zP1fpEUID23KpL19MF3Ib6dz'
       }
     });
 
@@ -111,6 +112,69 @@ app.post('/api/transcribe', upload.single('file'), async (req, res) => {
 
   } catch (error) {
     console.error('Error transcribing audio:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Translation endpoint
+app.post('/api/translate', async (req, res) => {
+  try {
+    const { text, from_language, to_language } = req.body;
+    
+    if (!text || !from_language || !to_language) {
+      return res.status(400).json({ error: 'Missing required fields: text, from_language, to_language' });
+    }
+    
+    console.log(`Translating from ${from_language} to ${to_language}`);
+    
+    // Call Python script for translation
+    const pythonScript = path.join(__dirname, 'backend', 'utils', 'translate_text.py');
+    
+    const pythonProcess = spawn('/Library/Frameworks/Python.framework/Versions/3.12/bin/python3', [pythonScript, text, from_language, to_language], {
+      cwd: __dirname,
+      env: { 
+        ...process.env, 
+        PYTHONPATH: path.join(__dirname, 'backend', 'utils'),
+        PATH: process.env.PATH + ':' + path.join(__dirname, 'higgs boson', 'venv', 'bin'),
+        OPENAI_API_KEY: 'bai-TRFeHvilHsLfnQV39kXs3716zP1fpEUID23KpL19MF3Ib6dz'
+      }
+    });
+    
+    let output = '';
+    let errorOutput = '';
+    
+    pythonProcess.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+    
+    pythonProcess.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
+    
+    pythonProcess.on('close', (code) => {
+      if (code !== 0) {
+        console.error('Python translation script failed:', errorOutput);
+        return res.status(500).json({ 
+          error: 'Translation failed',
+          details: errorOutput 
+        });
+      }
+      
+      try {
+        // Parse the JSON output from Python
+        const result = JSON.parse(output);
+        res.json(result);
+      } catch (parseError) {
+        console.error('Failed to parse Python translation output:', output);
+        res.status(500).json({ 
+          error: 'Failed to parse translation results',
+          output: output 
+        });
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error translating text:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

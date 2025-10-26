@@ -1,0 +1,398 @@
+import React, { useState, useRef, useEffect } from 'react';
+import Navbar from '../components/Navbar';
+import logo from '../assets/Cadence_AI.png';
+
+function HomePage() {
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [currentLanguage, setCurrentLanguage] = useState('English');
+  const [translatedLanguage, setTranslatedLanguage] = useState('Spanish');
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState({ current: false, translated: false });
+  const [currentTime, setCurrentTime] = useState(0);
+  const [audioContext, setAudioContext] = useState(null);
+  const [analyser, setAnalyser] = useState(null);
+  const [showLogoPopup, setShowLogoPopup] = useState(false);
+  const audioRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const animationFrameRef = useRef(null);
+
+  const moodColors = {
+    happy: ['#FFD700', '#FFA500', '#FF6B6B'],
+    sad: ['#4A90E2', '#5C6BC0', '#7986CB'],
+    energetic: ['#FF1744', '#F50057', '#FF4081'],
+    calm: ['#26A69A', '#66BB6A', '#81C784'],
+    default: ['#8BC34A', '#9CCC65', '#AED581'],
+  };
+
+  const [currentMood, setCurrentMood] = useState('default');
+  const [waveformBars, setWaveformBars] = useState([]);
+
+  const languages = [
+    'English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese',
+    'Japanese', 'Korean', 'Chinese (Mandarin)', 'Chinese (Cantonese)',
+    'Arabic', 'Russian', 'Hindi', 'Bengali', 'Urdu', 'Indonesian',
+    'Turkish', 'Vietnamese', 'Thai', 'Dutch', 'Greek', 'Hebrew',
+    'Swedish', 'Polish', 'Romanian', 'Czech', 'Hungarian', 'Finnish',
+    'Danish', 'Norwegian', 'Ukrainian', 'Tagalog', 'Swahili', 'Tamil',
+    'Telugu', 'Marathi', 'Gujarati', 'Punjabi', 'Malayalam', 'Kannada',
+  ];
+
+  const originalLyrics = [
+    { text: "Welcome to the audio translation app", startTime: 0, endTime: 3 },
+    { text: "Upload your favorite songs", startTime: 3, endTime: 6 },
+    { text: "And see them translated in real time", startTime: 6, endTime: 9 },
+    { text: "Enjoy music in any language", startTime: 9, endTime: 12 },
+  ];
+
+  const translatedLyrics = [
+    { text: "Bienvenido a la aplicación de traducción de audio", startTime: 0, endTime: 3 },
+    { text: "Sube tus canciones favoritas", startTime: 3, endTime: 6 },
+    { text: "Y véalas traducidas en tiempo real", startTime: 6, endTime: 9 },
+    { text: "Disfruta de la música en cualquier idioma", startTime: 9, endTime: 12 },
+  ];
+
+  // Check if this is the first visit
+  useEffect(() => {
+    const hasVisited = localStorage.getItem('hasVisitedHomePage');
+    if (!hasVisited) {
+      setShowLogoPopup(true);
+      localStorage.setItem('hasVisitedHomePage', 'true');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (uploadedFile) {
+      const bars = Array.from({ length: 100 }, () => ({
+        height: Math.random() * 100 + 20,
+        animationDelay: Math.random() * 2,
+      }));
+      setWaveformBars(bars);
+
+      const moods = ['happy', 'sad', 'energetic', 'calm'];
+      setCurrentMood(moods[Math.floor(Math.random() * moods.length)]);
+    }
+  }, [uploadedFile]);
+
+  useEffect(() => {
+    if (audioRef.current && uploadedFile && !audioContext) {
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const analyzerNode = context.createAnalyser();
+      analyzerNode.fftSize = 256;
+
+      const source = context.createMediaElementSource(audioRef.current);
+      source.connect(analyzerNode);
+      analyzerNode.connect(context.destination);
+
+      setAudioContext(context);
+      setAnalyser(analyzerNode);
+    }
+  }, [uploadedFile, audioContext]);
+
+  useEffect(() => {
+    if (analyser && isPlaying) {
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const animate = () => {
+        analyser.getByteFrequencyData(dataArray);
+
+        const newBars = Array.from({ length: 100 }, (_, i) => {
+          const index = Math.floor((i / 100) * bufferLength);
+          const value = dataArray[index] || 0;
+          return {
+            height: (value / 255) * 100 + 20,
+            animationDelay: 0,
+          };
+        });
+
+        setWaveformBars(newBars);
+        animationFrameRef.current = requestAnimationFrame(animate);
+      };
+
+      animate();
+
+      return () => {
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+      };
+    }
+  }, [analyser, isPlaying]);
+
+  useEffect(() => {
+    if (audioRef.current && isPlaying) {
+      const interval = setInterval(() => {
+        setCurrentTime(audioRef.current.currentTime);
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [isPlaying]);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('audio/')) {
+      setUploadedFile(file);
+      const url = URL.createObjectURL(file);
+      setAudioUrl(url);
+
+      // Save to localStorage for Previous Songs page
+      const newUpload = {
+        id: Date.now(),
+        name: file.name,
+        uploadDate: new Date().toLocaleDateString(),
+        audioUrl: url
+      };
+
+      const existingUploads = JSON.parse(localStorage.getItem('uploadedSongs') || '[]');
+      localStorage.setItem('uploadedSongs', JSON.stringify([newUpload, ...existingUploads]));
+    }
+  };
+
+  const handlePlayPause = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleReplay = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const handleUploadAnother = () => {
+    fileInputRef.current.click();
+  };
+
+  const isLyricActive = (lyric) => currentTime >= lyric.startTime && currentTime < lyric.endTime;
+
+  const LanguageSelector = ({ label, value, onChange, isOpen, toggleOpen }) => (
+    <div className="relative">
+      <button
+        onClick={toggleOpen}
+        className="bg-white hover:bg-gray-50 border-2 border-gray-300 px-6 py-3 rounded-lg min-w-[160px] text-left transition-colors"
+      >
+        <div className="text-xs text-gray-500 mb-1">{label}</div>
+        <div className="font-medium text-black">{value}</div>
+      </button>
+      {isOpen && (
+        <div className="absolute top-full mt-2 bg-white border-2 border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-50 min-w-[160px]">
+          {languages.map(lang => (
+            <button
+              key={lang}
+              onClick={() => {
+                onChange(lang);
+                toggleOpen();
+              }}
+              className="w-full px-4 py-2 text-left hover:bg-purple-100 transition-colors"
+            >
+              {lang}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-200 relative">
+      {/* Logo Popup - Only shows on first visit */}
+      {showLogoPopup && (
+        <div className="logo-popup">
+          <img src={logo} alt="Cadence AI Logo" />
+        </div>
+      )}
+
+      {uploadedFile && (
+        <div className="absolute left-0 right-0 flex items-center justify-center opacity-40 pointer-events-none" style={{ top: '140px', height: '200px' }}>
+          <div className="flex items-center justify-center gap-1 h-48">
+            {waveformBars.map((bar, i) => (
+              <div
+                key={i}
+                className="w-1 bg-gradient-to-t rounded-full transition-all duration-75"
+                style={{
+                  height: `${bar.height}%`,
+                  background: `linear-gradient(to top, ${moodColors[currentMood][0]}, ${moodColors[currentMood][1]}, ${moodColors[currentMood][2]})`
+                }}
+              />
+            ))}
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
+            <div className="flex items-center gap-4">
+              {/* Upload Another Button */}
+              <button
+                onClick={handleUploadAnother}
+                className="bg-green-500 hover:bg-green-600 text-white p-4 rounded-full transition-colors shadow-lg"
+                title="Upload Another Song"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </button>
+
+              {/* Play/Pause Button */}
+              <button
+                onClick={handlePlayPause}
+                className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full transition-colors shadow-lg"
+              >
+                {isPlaying ? (
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Replay Button */}
+              <button
+                onClick={handleReplay}
+                className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition-colors shadow-lg"
+                title="Replay from Start"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Navbar />
+
+      <div className="relative z-10 flex flex-col items-center justify-center px-8" style={{ marginTop: uploadedFile ? '10px' : '48px' }}>
+        <div className={`transition-all duration-500 ${uploadedFile ? 'mb-2' : 'mb-8'}`}>
+          <input
+            type="text"
+            placeholder="Cadence AI"
+            value={userName}
+            onChange={(e) => setUserName(e.target.value)}
+            className={`font-bold text-center bg-transparent border-none outline-none placeholder-black text-black transition-all duration-500 ${
+              uploadedFile ? 'text-xl' : 'text-3xl'
+            }`}
+          />
+        </div>
+
+        <div className={`w-full max-w-md transition-all duration-500 ${uploadedFile ? 'mb-2' : 'mb-6'}`}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="audio/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          {uploadedFile ? (
+            <div className="w-full bg-green-400 bg-opacity-50 backdrop-blur-sm rounded-lg flex items-center justify-center gap-3 shadow-lg py-2 px-4">
+              <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <span className="font-medium text-black text-sm flex-1 text-center">
+                {uploadedFile.name}
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileInputRef.current.click()}
+              className="w-full bg-green-400 hover:bg-green-500 transition-colors rounded-lg py-8 flex items-center justify-center gap-4 shadow-lg"
+            >
+              <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <span className="font-medium text-black text-xl">
+                Upload Audio File
+              </span>
+            </button>
+          )}
+        </div>
+
+        {!uploadedFile && (
+          <div className="flex items-center gap-4 mb-12">
+            <LanguageSelector
+              label="Current Language"
+              value={currentLanguage}
+              onChange={setCurrentLanguage}
+              isOpen={showLanguageDropdown.current}
+              toggleOpen={() => setShowLanguageDropdown(prev => ({ ...prev, current: !prev.current }))}
+            />
+            <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+            <LanguageSelector
+              label="Translated Language"
+              value={translatedLanguage}
+              onChange={setTranslatedLanguage}
+              isOpen={showLanguageDropdown.translated}
+              toggleOpen={() => setShowLanguageDropdown(prev => ({ ...prev, translated: !prev.translated }))}
+            />
+          </div>
+        )}
+
+        {uploadedFile && (
+          <div className="mb-48">
+            <audio ref={audioRef} src={audioUrl} onEnded={() => setIsPlaying(false)} crossOrigin="anonymous" />
+          </div>
+        )}
+
+        {uploadedFile && (
+          <div className="w-full max-w-6xl mb-12">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-purple-600 pb-2">
+                  Original ({currentLanguage})
+                </h3>
+                <div className="space-y-4">
+                  {originalLyrics.map((lyric, index) => (
+                    <p
+                      key={index}
+                      className={`text-lg transition-all duration-300 ${
+                        isLyricActive(lyric)
+                          ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      {lyric.text}
+                    </p>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-green-500 pb-2">
+                  Translated ({translatedLanguage})
+                </h3>
+                <div className="space-y-4">
+                  {translatedLyrics.map((lyric, index) => (
+                    <p
+                      key={index}
+                      className={`text-lg transition-all duration-300 ${
+                        isLyricActive(lyric)
+                          ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      {lyric.text}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default HomePage;
