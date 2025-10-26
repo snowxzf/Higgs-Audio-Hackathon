@@ -30,6 +30,12 @@ function About() {
             className="w-500 h-200 object-cover"
           />
         </div>
+        
+        <div className="max-w-3xl mx-auto mt-8 pt-8 border-t-2 border-gray-300">
+          <p className="text-sm text-gray-600 text-center">
+            Made by Jessica, Aarya, & Sara — Second Year EngScis excited about music
+          </p>
+        </div>
       </div>
     </div>
   );
