@@ -89,16 +89,7 @@ function HomePage() {
     
     // Pattern 1: <think>...</think>
     match = fullText.match(/<think>(.*?)<\/think>\s*(.*)/s);
-    if (match) {
-      return {
-        cleanTranslation: match[2].trim(),
-        reasoning: match[1].trim()
-      };
-    }
-    
-    // Pattern 1b: <think>...</think>
-    match = fullText.match(/<think>(.*?)<\/think>\s*(.*)/s);
-    if (match) {
+    if (match && match[2]) {
       return {
         cleanTranslation: match[2].trim(),
         reasoning: match[1].trim()
@@ -106,48 +97,96 @@ function HomePage() {
     }
     
     // Pattern 2: <think>...</think>
-    match = fullText.match(/<think>(.*?)<\/redacted_reasoning>\s*(.*)/s);
-    if (match) {
+    match = fullText.match(/<think>(.*?)<\/think>\s*(.*)/s);
+    if (match && match[2]) {
       return {
         cleanTranslation: match[2].trim(),
         reasoning: match[1].trim()
       };
     }
     
-    // Pattern 3: <reasoning>...</reasoning>
+    // Pattern 3: <think>...</think>
+    match = fullText.match(/<think>(.*?)<\/redacted_reasoning>\s*(.*)/s);
+    if (match && match[2]) {
+      return {
+        cleanTranslation: match[2].trim(),
+        reasoning: match[1].trim()
+      };
+    }
+    
+    // Pattern 4: <reasoning>...</reasoning>
     match = fullText.match(/<reasoning>(.*?)<\/reasoning>\s*(.*)/s);
-    if (match) {
+    if (match && match[2]) {
       return {
         cleanTranslation: match[2].trim(),
         reasoning: match[1].trim()
       };
     }
     
-    // Pattern 4: <think>...</think>
-    match = fullText.match(/<think>(.*?)<\/redacted_reasoning>\s*(.*)/s);
-    if (match) {
-      return {
-        cleanTranslation: match[2].trim(),
-        reasoning: match[1].trim()
-      };
-    }
-    
-    // Pattern 5: Handle cases where tags might have typos or variations
-    // Look for anything that looks like a reasoning tag with mismatched open/close tags
+    // Pattern 5: Handle mismatched tags (e.g., <think>...</think>, <think>...</think>)
     match = fullText.match(/<(think|reasoning|redacted_reasoning)>(.*?)<\/(think|reasoning|redacted_reasoning)>\s*(.*)/s);
-    if (match) {
+    if (match && match[4]) {
       return {
-        cleanTranslation: match[4] ? match[4].trim() : fullText.trim(),
+        cleanTranslation: match[4].trim(),
         reasoning: match[2] ? match[2].trim() : ''
       };
     }
     
-    // If no tags found, return the text as-is with no reasoning
+    // Pattern 6: If there's an opening tag but no proper closing tag, try to extract manually
+    const openTagMatch = fullText.match(/<(think|reasoning|redacted_reasoning)>/);
+    if (openTagMatch) {
+      // Find where the tag opens and try to extract everything after it
+      const tagIndex = fullText.indexOf('>');
+      const reasoningText = fullText.substring(tagIndex + 1);
+      // Try to find where the translation starts (look for meaningful text after reasoning)
+      // This is a fallback for malformed tags
+      return {
+        cleanTranslation: reasoningText.trim(),
+        reasoning: ''
+      };
+    }
+    
+    // Pattern 7: If text starts with tag content (not wrapped), return as translation
+    // This handles cases where LLM outputs without tags
     return {
       cleanTranslation: fullText.trim(),
       reasoning: ''
     };
   };
+
+  // Load lyrics from localStorage on component mount
+  useEffect(() => {
+    const storedOriginalLyrics = JSON.parse(localStorage.getItem('originalLyrics') || '[]');
+    const storedTranslatedLyrics = JSON.parse(localStorage.getItem('translatedLyrics') || '[]');
+    const storedCurrentLanguage = localStorage.getItem('currentLanguage') || 'English';
+    const storedTranslatedLanguage = localStorage.getItem('translatedLanguage') || 'Spanish';
+    const storedAnalysis = localStorage.getItem('analysisText') || '';
+    const storedVocalsUrl = localStorage.getItem('vocalsUrl');
+    const storedBackgroundUrl = localStorage.getItem('backgroundUrl');
+    const storedUploadedFileName = localStorage.getItem('uploadedFileName');
+    
+    if (storedOriginalLyrics.length > 0) {
+      setOriginalLyrics(storedOriginalLyrics);
+      setTranslatedLyrics(storedTranslatedLyrics);
+      setCurrentLanguage(storedCurrentLanguage);
+      setTranslatedLanguage(storedTranslatedLanguage);
+      setDetectedLanguage(storedCurrentLanguage);
+      setAnalysisText(storedAnalysis);
+      
+      if (storedUploadedFileName) {
+        // Create a dummy file object to restore the UI state
+        const dummyFile = {
+          name: storedUploadedFileName,
+          type: 'audio/mpeg'
+        };
+        setUploadedFile(dummyFile);
+        
+        // Restore audio URL if available
+        if (storedVocalsUrl) setVocalsUrl(storedVocalsUrl);
+        if (storedBackgroundUrl) setBackgroundUrl(storedBackgroundUrl);
+      }
+    }
+  }, []);
 
   const processAudioFile = async (file) => {
     setIsProcessing(true);
@@ -246,6 +285,14 @@ function HomePage() {
           setTranslatedLyrics(translatedLyrics);
           setCurrentLanguage(currentLanguage);
           
+          // Save lyrics to localStorage for Karaoke page (will be completed after URLs are set)
+          localStorage.setItem('originalLyrics', JSON.stringify(originalLyrics));
+          localStorage.setItem('translatedLyrics', JSON.stringify(translatedLyrics));
+          localStorage.setItem('currentLanguage', currentLanguage);
+          localStorage.setItem('translatedLanguage', translatedLanguage);
+          localStorage.setItem('analysisText', analysisText);
+          localStorage.setItem('uploadedFileName', file.name);
+          
           console.log('✅ Transcript complete! originalLyrics length:', originalLyrics.length, 'isProcessing:', isProcessing);
           console.log('✅ Buttons should be ENABLED. originalLyrics.length > 0:', originalLyrics.length > 0);
           
@@ -254,14 +301,18 @@ function HomePage() {
             // Extract filenames from paths
             if (vocals_path) {
               const vocalsFilename = vocals_path.split('/').pop();
-              setVocalsUrl(`http://localhost:3001/api/audio/vocals/${vocalsFilename}`);
-              console.log('Vocals URL:', `http://localhost:3001/api/audio/vocals/${vocalsFilename}`);
+              const vocalsUrlValue = `http://localhost:3001/api/audio/vocals/${vocalsFilename}`;
+              setVocalsUrl(vocalsUrlValue);
+              localStorage.setItem('vocalsUrl', vocalsUrlValue);
+              console.log('Vocals URL:', vocalsUrlValue);
             }
             
             if (background_path) {
               const backgroundFilename = background_path.split('/').pop();
-              setBackgroundUrl(`http://localhost:3001/api/audio/background/${backgroundFilename}`);
-              console.log('Background URL:', `http://localhost:3001/api/audio/background/${backgroundFilename}`);
+              const backgroundUrlValue = `http://localhost:3001/api/audio/background/${backgroundFilename}`;
+              setBackgroundUrl(backgroundUrlValue);
+              localStorage.setItem('backgroundUrl', backgroundUrlValue);
+              console.log('Background URL:', backgroundUrlValue);
             }
           }
           

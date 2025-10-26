@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 
 function Karaoke() {
+  const navigate = useNavigate();
   const [isRecording, setIsRecording] = useState(false);
   const [recordings, setRecordings] = useState([]);
   const [bgGradient, setBgGradient] = useState('from-gray-900 via-gray-800 to-gray-900');
@@ -19,20 +21,30 @@ function Karaoke() {
   const streamRef = useRef(null);
   const gradientTransitionRef = useRef(null);
 
-  // Sample lyrics for demonstration
-  const originalLyrics = [
-    { text: "Start recording your karaoke performance", startTime: 0, endTime: 3 },
-    { text: "Sing along with your favorite songs", startTime: 3, endTime: 6 },
-    { text: "Watch the visualizer react to your voice", startTime: 6, endTime: 9 },
-    { text: "Download your recordings when done", startTime: 9, endTime: 12 },
-  ];
+  // Get lyrics from localStorage (stored from HomePage)
+  const [originalLyrics, setOriginalLyrics] = useState([]);
+  const [translatedLyrics, setTranslatedLyrics] = useState([]);
+  const [currentLanguage, setCurrentLanguage] = useState('English');
+  const [translatedLanguage, setTranslatedLanguage] = useState('Spanish');
+  const [hasLyrics, setHasLyrics] = useState(false);
 
-  const translatedLyrics = [
-    { text: "Comienza a grabar tu actuación de karaoke", startTime: 0, endTime: 3 },
-    { text: "Canta junto con tus canciones favoritas", startTime: 3, endTime: 6 },
-    { text: "Mira cómo el visualizador reacciona a tu voz", startTime: 6, endTime: 9 },
-    { text: "Descarga tus grabaciones cuando termines", startTime: 9, endTime: 12 },
-  ];
+  // Load lyrics from localStorage on component mount
+  useEffect(() => {
+    const storedOriginalLyrics = JSON.parse(localStorage.getItem('originalLyrics') || '[]');
+    const storedTranslatedLyrics = JSON.parse(localStorage.getItem('translatedLyrics') || '[]');
+    const storedCurrentLanguage = localStorage.getItem('currentLanguage') || 'English';
+    const storedTranslatedLanguage = localStorage.getItem('translatedLanguage') || 'Spanish';
+    
+    if (storedOriginalLyrics.length > 0) {
+      setOriginalLyrics(storedOriginalLyrics);
+      setTranslatedLyrics(storedTranslatedLyrics);
+      setCurrentLanguage(storedCurrentLanguage);
+      setTranslatedLanguage(storedTranslatedLanguage);
+      setHasLyrics(true);
+    } else {
+      setHasLyrics(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (targetGradient !== bgGradient) {
@@ -214,12 +226,34 @@ function Karaoke() {
       <div className="relative flex items-center justify-center" style={{ height: 'calc(100vh - 80px)' }}>
         <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full z-0" />
 
-        {/* Content Container with Lyrics on Sides */}
-        <div className="relative z-10 flex items-center justify-center gap-8 max-w-7xl mx-auto px-8">
+        {!hasLyrics ? (
+          /* Welcome Screen - Show when no lyrics uploaded */
+          <div className="relative z-10 flex flex-col items-center justify-center gap-6 max-w-2xl mx-auto px-8 text-center">
+            <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-8">
+              <h2 className="text-3xl font-bold text-gray-800 mb-4">Welcome to Karaoke Mode!</h2>
+              <p className="text-lg text-gray-700 mb-4">
+                Upload a song on the Home page to get started with karaoke.
+              </p>
+              <p className="text-base text-gray-600 mb-6">
+                Once you've uploaded your song, you can record yourself singing along with the lyrics
+                displayed in both the original and translated languages, with a real-time audio visualizer
+                that reacts to your voice!
+              </p>
+              <button
+                onClick={() => navigate('/')}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors shadow-lg"
+              >
+                Go to Home to Upload
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Karaoke Interface - Show when lyrics are available */
+          <div className="relative z-10 flex items-center justify-center gap-8 max-w-7xl mx-auto px-8">
           {/* Original Lyrics - Left Side */}
           <div className="flex-1 bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6 max-w-md">
             <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-purple-600 pb-2">
-              Original (English)
+              Original ({currentLanguage})
             </h3>
             <div className="space-y-3">
               {originalLyrics.map((lyric, index) => (
@@ -261,7 +295,7 @@ function Karaoke() {
           {/* Translated Lyrics - Right Side */}
           <div className="flex-1 bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6 max-w-md">
             <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-green-500 pb-2">
-              Translated (Spanish)
+              Translated ({translatedLanguage})
             </h3>
             <div className="space-y-3">
               {translatedLyrics.map((lyric, index) => (
@@ -277,10 +311,9 @@ function Karaoke() {
               ))}
             </div>
           </div>
-        </div>
 
-        {/* Recordings List */}
-        {recordings.length > 0 && (
+            {/* Recordings List */}
+            {recordings.length > 0 && (
           <div className="absolute bottom-8 right-8 bg-black bg-opacity-50 backdrop-blur-md rounded-lg p-4 max-w-md max-h-96 overflow-y-auto z-20">
             <h3 className="text-white text-lg font-semibold mb-3">Recordings</h3>
             <div className="space-y-2">
@@ -315,6 +348,8 @@ function Karaoke() {
                 </div>
               ))}
             </div>
+          </div>
+            )}
           </div>
         )}
       </div>
