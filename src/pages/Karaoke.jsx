@@ -30,8 +30,10 @@ function Karaoke() {
   
   // Background audio control state
   const [backgroundUrl, setBackgroundUrl] = useState(null);
+  const backgroundUrlRef = useRef(null);
   const [isBackgroundPlaying, setIsBackgroundPlaying] = useState(false);
   const [shouldPlayDuringRecording, setShouldPlayDuringRecording] = useState(false);
+  const shouldPlayDuringRecordingRef = useRef(false);
   const [backgroundAudioTime, setBackgroundAudioTime] = useState(0);
   const backgroundAudioRef = useRef(null);
 
@@ -63,6 +65,7 @@ function Karaoke() {
       // Load background audio URL if available
       if (storedBackgroundUrl) {
         setBackgroundUrl(storedBackgroundUrl);
+        backgroundUrlRef.current = storedBackgroundUrl;
         console.log('Background URL loaded:', storedBackgroundUrl);
       }
     } else {
@@ -85,6 +88,11 @@ function Karaoke() {
       }
     };
   }, [targetGradient, bgGradient]);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    shouldPlayDuringRecordingRef.current = shouldPlayDuringRecording;
+  }, [shouldPlayDuringRecording]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -183,6 +191,112 @@ function Karaoke() {
     }
   };
 
+  const mixAudioWithBackground = async (voiceBlob, bgUrl) => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // Load voice recording
+      const voiceArrayBuffer = await voiceBlob.arrayBuffer();
+      const voiceBuffer = await audioCtx.decodeAudioData(voiceArrayBuffer);
+      
+      // Load background audio
+      const backgroundResponse = await fetch(bgUrl);
+      const backgroundArrayBuffer = await backgroundResponse.arrayBuffer();
+      const backgroundBuffer = await audioCtx.decodeAudioData(backgroundArrayBuffer);
+      
+      // Get the longer duration
+      const maxDuration = Math.max(voiceBuffer.duration, backgroundBuffer.duration);
+      
+      // Create a new buffer with mixed audio
+      const mixedBuffer = audioCtx.createBuffer(
+        voiceBuffer.numberOfChannels,
+        Math.ceil(maxDuration * audioCtx.sampleRate),
+        audioCtx.sampleRate
+      );
+      
+      // Mix voice and background
+      for (let channel = 0; channel < voiceBuffer.numberOfChannels; channel++) {
+        const voiceData = voiceBuffer.getChannelData(channel);
+        const backgroundData = backgroundBuffer.getChannelData(channel);
+        const mixedData = mixedBuffer.getChannelData(channel);
+        
+        for (let i = 0; i < mixedData.length; i++) {
+          const voiceSample = voiceData[i] || 0;
+          const backgroundSample = backgroundData[i] || 0;
+          
+          // Mix: voice at 70%, background at 30%
+          mixedData[i] = (voiceSample * 0.7) + (backgroundSample * 0.3);
+        }
+      }
+      
+      // Convert to blob
+      const offlineCtx = new OfflineAudioContext(
+        mixedBuffer.numberOfChannels,
+        mixedBuffer.length,
+        audioCtx.sampleRate
+      );
+      
+      const source = offlineCtx.createBufferSource();
+      source.buffer = mixedBuffer;
+      source.connect(offlineCtx.destination);
+      source.start(0);
+      
+      const renderedBuffer = await offlineCtx.startRendering();
+      
+      // Convert to wav and create blob
+      const wavBlob = audioBufferToWav(renderedBuffer);
+      return URL.createObjectURL(wavBlob);
+    } catch (error) {
+      console.error('Error mixing audio:', error);
+      // Return original voice recording if mixing fails
+      return URL.createObjectURL(voiceBlob);
+    }
+  };
+
+  const audioBufferToWav = (buffer) => {
+    const length = buffer.length;
+    const numberOfChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const bytesPerSample = 2;
+    const blockAlign = numberOfChannels * bytesPerSample;
+    
+    const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * bytesPerSample);
+    const view = new DataView(arrayBuffer);
+    
+    // WAV header
+    const writeString = (offset, string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+    
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + length * numberOfChannels * bytesPerSample, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numberOfChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bytesPerSample * 8, true);
+    writeString(36, 'data');
+    view.setUint32(40, length * numberOfChannels * bytesPerSample, true);
+    
+    // Convert audio data
+    let offset = 44;
+    for (let i = 0; i < length; i++) {
+      for (let channel = 0; channel < numberOfChannels; channel++) {
+        const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        offset += 2;
+      }
+    }
+    
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+  };
+
   const handleRecord = async () => {
     if (isRecording) {
       // Stop recording
@@ -237,11 +351,18 @@ function Karaoke() {
           }
         };
 
-        mediaRecorderRef.current.onstop = () => {
+        mediaRecorderRef.current.onstop = async () => {
           const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-          const url = URL.createObjectURL(blob);
+          
+          let finalUrl = URL.createObjectURL(blob);
+          
+          // If background audio was playing during recording, mix them together
+          if (shouldPlayDuringRecordingRef.current && backgroundUrlRef.current) {
+            finalUrl = await mixAudioWithBackground(blob, backgroundUrlRef.current);
+          }
+          
           const timestamp = new Date().toLocaleString();
-          setRecordings(prev => [...prev, { url, timestamp, id: Date.now() }]);
+          setRecordings(prev => [...prev, { url: finalUrl, timestamp, id: Date.now() }]);
           chunksRef.current = [];
         };
 
