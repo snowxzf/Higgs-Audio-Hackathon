@@ -1,0 +1,16 @@
+# Higgs Audio Translation App - Python Dependencies
+
+# Core dependencies
+openai>=1.0.0
+python-dotenv>=1.0.0
+numpy>=1.24.0
+torch>=2.0.0
+
+# Audio processing
+demucs>=4.0.0
+ffmpeg-python>=0.2.0
+
+# Note: FFmpeg must be installed separately on your system
+# macOS: brew install ffmpeg
+# Linux: apt-get install ffmpeg or yum install ffmpeg
+# Windows: Download from https://ffmpeg.org/download.html
