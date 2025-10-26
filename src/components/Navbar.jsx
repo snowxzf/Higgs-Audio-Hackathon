@@ -44,12 +44,6 @@ function Navbar() {
                             <div className="absolute inset-0 bg-gray-400 rounded-full opacity-30 -m-2"></div>
                         )}
                     </Link>
-                    <Link to="/generation" className={`text-black hover:text-gray-700 transition-colors relative`}>
-                        <span className="relative z-10">Song Generation</span>
-                        {isActive('/generation') && (
-                            <div className="absolute inset-0 bg-gray-400 rounded-full opacity-30 -m-2"></div>
-                        )}
-                    </Link>
 
                 </div>
             </div>

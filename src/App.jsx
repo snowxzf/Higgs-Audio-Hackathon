@@ -4,7 +4,6 @@ import HomePage from './pages/HomePage'
 import About from './pages/About'
 import Karaoke from './pages/Karaoke'
 import Friends from './pages/Friends'
-import Generation from './pages/Generation'
 import Previous from './pages/Previous'
 
 function App() {
@@ -16,7 +15,6 @@ function App() {
                 <Route path="/about" element={<About />} />
                 <Route path="/karaoke" element={<Karaoke />} />
                 <Route path="/friends" element={<Friends />} />
-                <Route path="/generation" element={<Generation />} />
                 <Route path="/previous" element={<Previous />} />
             </Routes>
         </Router>
