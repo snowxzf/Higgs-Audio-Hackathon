@@ -84,9 +84,11 @@ function HomePage() {
   const extractCleanTranslation = (fullText) => {
     if (!fullText) return { cleanTranslation: '', reasoning: '' };
     
-    // Look for <think>...</think> tags (with </think> closing)
-    const thinkPattern1 = /<think>(.*?)<\/think>\s*(.*)/s;
-    let match = fullText.match(thinkPattern1);
+    // Try multiple patterns to catch different LLM output formats
+    let match;
+    
+    // Pattern 1: <think>...</think>
+    match = fullText.match(/<think>(.*?)<\/think>\s*(.*)/s);
     if (match) {
       return {
         cleanTranslation: match[2].trim(),
@@ -94,13 +96,49 @@ function HomePage() {
       };
     }
     
-    // Look for <think>...</think> tags (with </think> closing)
-    const thinkPattern2 = /<think>(.*?)<\/redacted_reasoning>\s*(.*)/s;
-    match = fullText.match(thinkPattern2);
+    // Pattern 1b: <think>...</think>
+    match = fullText.match(/<think>(.*?)<\/think>\s*(.*)/s);
     if (match) {
       return {
         cleanTranslation: match[2].trim(),
         reasoning: match[1].trim()
+      };
+    }
+    
+    // Pattern 2: <think>...</think>
+    match = fullText.match(/<think>(.*?)<\/redacted_reasoning>\s*(.*)/s);
+    if (match) {
+      return {
+        cleanTranslation: match[2].trim(),
+        reasoning: match[1].trim()
+      };
+    }
+    
+    // Pattern 3: <reasoning>...</reasoning>
+    match = fullText.match(/<reasoning>(.*?)<\/reasoning>\s*(.*)/s);
+    if (match) {
+      return {
+        cleanTranslation: match[2].trim(),
+        reasoning: match[1].trim()
+      };
+    }
+    
+    // Pattern 4: <think>...</think>
+    match = fullText.match(/<think>(.*?)<\/redacted_reasoning>\s*(.*)/s);
+    if (match) {
+      return {
+        cleanTranslation: match[2].trim(),
+        reasoning: match[1].trim()
+      };
+    }
+    
+    // Pattern 5: Handle cases where tags might have typos or variations
+    // Look for anything that looks like a reasoning tag with mismatched open/close tags
+    match = fullText.match(/<(think|reasoning|redacted_reasoning)>(.*?)<\/(think|reasoning|redacted_reasoning)>\s*(.*)/s);
+    if (match) {
+      return {
+        cleanTranslation: match[4] ? match[4].trim() : fullText.trim(),
+        reasoning: match[2] ? match[2].trim() : ''
       };
     }
     
@@ -396,7 +434,22 @@ function HomePage() {
   };
   
   const handleGoHome = () => {
-    navigate('/');
+    // Reset all states to go back to upload page
+    setUploadedFile(null);
+    setAudioUrl(null);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setAudioDuration(0);
+    setOriginalLyrics([]);
+    setTranslatedLyrics([]);
+    setAnalysisText('');
+    setVocalsUrl(null);
+    setBackgroundUrl(null);
+    setDetectedLanguage('');
+    setIsProcessing(false);
+    
+    // Force navigation to trigger a complete page reset
+    window.location.href = '/';
   };
 
   const handleDownloadAudio = () => {
@@ -471,6 +524,14 @@ function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-200 relative">
+      {/* Add pulse animation CSS */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 0.4; transform: scaleY(0.8); }
+          50% { opacity: 0.9; transform: scaleY(1.2); }
+        }
+      `}</style>
+      
       {/* Logo Popup - Only shows on first visit */}
       {showLogoPopup && (
         <div className="logo-popup">
@@ -485,10 +546,12 @@ function HomePage() {
             {waveformBars.map((bar, i) => (
               <div
                 key={i}
-                className="w-1 bg-gradient-to-t rounded-full transition-all duration-75"
+                className="w-1 bg-gradient-to-t rounded-full transition-all duration-300"
                 style={{
                   height: `${bar.height}%`,
-                  background: `linear-gradient(to top, ${moodColors[currentMood][0]}, ${moodColors[currentMood][1]}, ${moodColors[currentMood][2]})`
+                  background: `linear-gradient(to top, ${moodColors[currentMood][0]}, ${moodColors[currentMood][1]}, ${moodColors[currentMood][2]})`,
+                  animation: isPlaying ? `pulse ${2 + (i % 3)}s ease-in-out infinite` : 'none',
+                  animationDelay: `${i * 0.05}s`
                 }}
               />
             ))}

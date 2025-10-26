@@ -18,9 +18,23 @@ function About() {
           <p className="text-lg text-gray-700 mb-4">
             The karaoke feature allows you to sing these songs, with your friends or by yourself. You can also share your favourite songs with your friends and connections to explore new music together.
           </p>
-          <p className="text-lg text-gray-700">
+          <p className="text-lg text-gray-700 mb-6">
             So what are you waiting for? Use CadenceAI today and start exploring the world of music like never before!
           </p>
+          
+          <div className="mt-6 pt-6 border-t-2 border-gray-200">
+            <p className="text-lg font-semibold text-gray-800 mb-3">
+              Powered by Higgs Boson AI
+            </p>
+            <p className="text-sm text-gray-600 mb-2">
+              This project was built for the Higgs Boson AI Hackathon and leverages the following cutting-edge AI models:
+            </p>
+            <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+              <li><strong>higgs-audio-understanding-Hackathon</strong> — For audio transcription and language detection</li>
+              <li><strong>Qwen3-32B-thinking-Hackathon</strong> — For intelligent translation with syllable and rhyme preservation</li>
+              <li><strong>higgs-audio-v2-generation-3B-sft-Hackathon</strong> — For expressive audio generation and voice cloning</li>
+            </ul>
+          </div>
         </div>
 
         <div className="flex gap-6 mt-6 justify-center">
