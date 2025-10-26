@@ -25,6 +25,10 @@ function HomePage() {
   const [analysisText, setAnalysisText] = useState('');
   const [vocalsUrl, setVocalsUrl] = useState(null);
   const [backgroundUrl, setBackgroundUrl] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareTarget, setShareTarget] = useState('email');
+  const [shareEmail, setShareEmail] = useState('');
+  const [shareFriend, setShareFriend] = useState('');
   const audioRef = useRef(null);
   const fileInputRef = useRef(null);
   const animationFrameRef = useRef(null);
@@ -708,6 +712,53 @@ function HomePage() {
     }
   };
 
+  const handleShare = () => {
+    setShowShareModal(true);
+  };
+
+  const shareCurrentSong = () => {
+    if (!uploadedFile || originalLyrics.length === 0) return;
+    
+    const songData = {
+      name: uploadedFile.name,
+      uploadDate: new Date().toLocaleDateString(),
+      originalLyrics,
+      translatedLyrics,
+      currentLanguage,
+      translatedLanguage,
+      analysisText,
+      audioUrl,
+      vocalsUrl,
+      backgroundUrl,
+      detectedLanguage
+    };
+
+    if (shareTarget === 'email') {
+      const subject = encodeURIComponent(`Shared Song: ${uploadedFile.name}`)
+      const body = encodeURIComponent(
+        `I wanted to share this song with you:\n\n` +
+        `Song: ${uploadedFile.name}\n\n` +
+        `Original Lyrics:\n${originalLyrics.map(l => l.text).join('\n')}\n\n` +
+        `Translated Lyrics:\n${translatedLyrics.map(l => l.text).join('\n')}`
+      )
+      window.location.href = `mailto:${shareEmail}?subject=${subject}&body=${body}`
+      alert(`Opening email client to share with ${shareEmail}!`)
+    } else if (shareTarget === 'friend') {
+      const friends = JSON.parse(localStorage.getItem('friends') || '[]')
+      const friend = friends.find(f => f.name === shareFriend)
+      
+      if (friend) {
+        const sharedSongs = JSON.parse(localStorage.getItem(`sharedWith_${friend.id}`) || '[]')
+        const updatedShared = [...sharedSongs, songData]
+        localStorage.setItem(`sharedWith_${friend.id}`, JSON.stringify(updatedShared))
+        alert(`Successfully shared song with ${shareFriend}!`)
+      }
+    }
+    
+    setShareEmail('')
+    setShareFriend('')
+  };
+
   const isLyricActive = (lyric) => currentTime >= lyric.start && currentTime < lyric.end;
 
   const LanguageSelector = ({ label, value, onChange, isOpen, toggleOpen }) => (
@@ -756,7 +807,7 @@ function HomePage() {
       )}
 
       {uploadedFile && (
-        <div className="absolute left-0 right-0 flex items-center justify-center z-20" style={{ top: '140px', height: '200px' }}>
+        <div className={`absolute left-0 right-0 flex items-center justify-center ${showShareModal ? 'z-0' : 'z-20'}`} style={{ top: '140px', height: '200px' }}>
           {/* Waveform background - behind buttons */}
           <div className="absolute inset-0 flex items-center justify-center gap-1 h-48 opacity-40 pointer-events-none">
             {waveformBars.map((bar, i) => (
@@ -996,6 +1047,23 @@ function HomePage() {
         {uploadedFile && (
           <div className="w-full max-w-6xl mb-12 flex justify-center gap-6">
             <button
+              onClick={handleShare}
+              disabled={isProcessing || originalLyrics.length === 0}
+              className={`px-8 py-4 rounded-lg flex items-center gap-3 transition-colors shadow-lg ${
+                isProcessing || originalLyrics.length === 0
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-blue-500 hover:bg-blue-600'
+              } text-white`}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.885 12.938 9 12.482 9 12c0-.482-.115-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              <span className="font-semibold text-lg">
+                {isProcessing ? 'Processing...' : 'Share'}
+              </span>
+            </button>
+
+            <button
               onClick={handleDownloadAudio}
               disabled={isProcessing || !vocalsUrl}
               className={`px-8 py-4 rounded-lg flex items-center gap-3 transition-colors shadow-lg ${
@@ -1028,6 +1096,100 @@ function HomePage() {
                 {isProcessing ? 'Processing...' : 'Download Instrumental'}
               </span>
             </button>
+          </div>
+        )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 relative">
+            <button
+              onClick={() => {
+                setShowShareModal(false)
+                setShareEmail('')
+                setShareFriend('')
+              }}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h2 className="text-2xl font-bold mb-4">Share Song</h2>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Share via:</label>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShareTarget('email')}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+                    shareTarget === 'email' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Email
+                </button>
+                <button
+                  onClick={() => setShareTarget('friend')}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+                    shareTarget === 'friend' 
+                      ? 'bg-purple-500 text-white' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Friend
+                </button>
+              </div>
+            </div>
+
+            {shareTarget === 'email' ? (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email address:</label>
+                <input
+                  type="email"
+                  value={shareEmail}
+                  onChange={(e) => setShareEmail(e.target.value)}
+                  placeholder="friend@example.com"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            ) : (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select friend:</label>
+                <select
+                  value={shareFriend}
+                  onChange={(e) => setShareFriend(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">Choose a friend...</option>
+                  {JSON.parse(localStorage.getItem('friends') || '[]').map(friend => (
+                    <option key={friend.id} value={friend.name}>{friend.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={shareCurrentSong}
+                disabled={(shareTarget === 'email' && !shareEmail) || (shareTarget === 'friend' && !shareFriend)}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-colors"
+              >
+                Share
+              </button>
+              <button
+                onClick={() => {
+                  setShowShareModal(false)
+                  setShareEmail('')
+                  setShareFriend('')
+                }}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+            </div>
           </div>
         )}
       </div>
