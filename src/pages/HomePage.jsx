@@ -16,7 +16,7 @@ function HomePage() {
   const [audioDuration, setAudioDuration] = useState(0);
   const [audioContext, setAudioContext] = useState(null);
   const [analyser, setAnalyser] = useState(null);
-  const [showLogoPopup, setShowLogoPopup] = useState(false);
+  const [showLogoPopup, setShowLogoPopup] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedData, setProcessedData] = useState(null);
   const [originalLyrics, setOriginalLyrics] = useState([]);
