@@ -25,6 +25,17 @@ function PreviousSongs() {
     })
   }
 
+  const toggleSelectAll = () => {
+    if (selectedSongs.size === previousUploads.length) {
+      // Deselect all
+      setSelectedSongs(new Set())
+    } else {
+      // Select all
+      const allIds = new Set(previousUploads.map(song => song.id))
+      setSelectedSongs(allIds)
+    }
+  }
+
   const deleteSelectedSongs = () => {
     const updatedUploads = previousUploads.filter(song => !selectedSongs.has(song.id))
     setPreviousUploads(updatedUploads)
@@ -47,6 +58,18 @@ function PreviousSongs() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <h1 className="text-4xl font-bold text-black">Previous Songs</h1>
+              
+              {/* Select All Checkbox */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={previousUploads.length > 0 && selectedSongs.size === previousUploads.length}
+                  onChange={toggleSelectAll}
+                  className="w-5 h-5 cursor-pointer accent-purple-600"
+                />
+                <label className="text-sm text-gray-700 cursor-pointer">Select All</label>
+              </div>
+              
               {selectedSongs.size > 0 && (
                 <button
                   onClick={deleteSelectedSongs}
