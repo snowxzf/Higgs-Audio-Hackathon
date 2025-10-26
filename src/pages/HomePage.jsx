@@ -84,9 +84,19 @@ function HomePage() {
   const extractCleanTranslation = (fullText) => {
     if (!fullText) return { cleanTranslation: '', reasoning: '' };
     
-    // Look for <think>...</think> tags
-    const thinkPattern = /<think>(.*?)<\/think>\s*(.*)/s;
-    let match = fullText.match(thinkPattern);
+    // Look for <think>...</think> tags (with </think> closing)
+    const thinkPattern1 = /<think>(.*?)<\/think>\s*(.*)/s;
+    let match = fullText.match(thinkPattern1);
+    if (match) {
+      return {
+        cleanTranslation: match[2].trim(),
+        reasoning: match[1].trim()
+      };
+    }
+    
+    // Look for <think>...</think> tags (with </think> closing)
+    const thinkPattern2 = /<think>(.*?)<\/redacted_reasoning>\s*(.*)/s;
+    match = fullText.match(thinkPattern2);
     if (match) {
       return {
         cleanTranslation: match[2].trim(),
@@ -197,6 +207,9 @@ function HomePage() {
           setOriginalLyrics(originalLyrics);
           setTranslatedLyrics(translatedLyrics);
           setCurrentLanguage(currentLanguage);
+          
+          console.log('✅ Transcript complete! originalLyrics length:', originalLyrics.length, 'isProcessing:', isProcessing);
+          console.log('✅ Buttons should be ENABLED. originalLyrics.length > 0:', originalLyrics.length > 0);
           
           // Load separated audio files if paths are provided
           if (vocals_path || background_path) {
@@ -466,8 +479,9 @@ function HomePage() {
       )}
 
       {uploadedFile && (
-        <div className="absolute left-0 right-0 flex items-center justify-center" style={{ top: '140px', height: '200px' }}>
-          <div className="flex items-center justify-center gap-1 h-48 opacity-40 pointer-events-none">
+        <div className="absolute left-0 right-0 flex items-center justify-center z-20" style={{ top: '140px', height: '200px' }}>
+          {/* Waveform background - behind buttons */}
+          <div className="absolute inset-0 flex items-center justify-center gap-1 h-48 opacity-40 pointer-events-none">
             {waveformBars.map((bar, i) => (
               <div
                 key={i}
@@ -479,19 +493,24 @@ function HomePage() {
               />
             ))}
           </div>
-          <div className="absolute inset-0 flex items-center justify-center z-10">
-            <div className="flex items-center gap-4">
+          {/* Buttons - in front, clickable */}
+          <div className="flex items-center gap-4 relative z-30">
               {/* Blue Button (Left) - Go to Karaoke */}
               <button
                 onClick={() => {
                   console.log('Karaoke button clicked');
                   handleGoToKaraoke();
                 }}
-                className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition-colors shadow-lg"
-                title="Go to Karaoke Page"
+                disabled={isProcessing || originalLyrics.length === 0}
+                className={`p-4 rounded-full transition-colors shadow-lg ${
+                  isProcessing || originalLyrics.length === 0
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-500 hover:bg-blue-600'
+                } text-white`}
+                title={isProcessing ? 'Processing transcript... Please wait' : originalLyrics.length === 0 ? 'Waiting for transcript...' : 'Go to Karaoke Page'}
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                 </svg>
               </button>
 
@@ -501,8 +520,13 @@ function HomePage() {
                   console.log('Play/Pause button clicked');
                   handlePlayPause();
                 }}
-                className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full transition-colors shadow-lg"
-                title="Play/Pause"
+                disabled={isProcessing || originalLyrics.length === 0}
+                className={`p-4 rounded-full transition-colors shadow-lg ${
+                  isProcessing || originalLyrics.length === 0
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-purple-600 hover:bg-purple-700'
+                } text-white`}
+                title={isProcessing ? 'Processing transcript... Please wait' : originalLyrics.length === 0 ? 'Waiting for transcript...' : 'Play/Pause audio'}
               >
                 {isPlaying ? (
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -515,20 +539,24 @@ function HomePage() {
                 )}
               </button>
 
-              {/* Green Button (Right) - Go to Home */}
+              {/* Green Button (Right) - Upload */}
               <button
                 onClick={() => {
-                  console.log('Home button clicked');
+                  console.log('Upload button clicked');
                   handleGoHome();
                 }}
-                className="bg-green-500 hover:bg-green-600 text-white p-4 rounded-full transition-colors shadow-lg"
-                title="Go to Home"
+                disabled={isProcessing}
+                className={`p-4 rounded-full transition-colors shadow-lg ${
+                  isProcessing
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-green-500 hover:bg-green-600'
+                } text-white`}
+                title={isProcessing ? 'Processing transcript... Please wait' : 'Upload New Song'}
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
               </button>
-            </div>
           </div>
         </div>
       )}
