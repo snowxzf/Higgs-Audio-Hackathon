@@ -24,7 +24,19 @@ const initialFriends = [
 ];
 
 export default function Friends() {
-  const [friends, setFriends] = useState(initialFriends);
+  // Load friends from localStorage on mount
+  const [friends, setFriends] = useState(() => {
+    const saved = localStorage.getItem('friends');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    // If no saved friends, use initial and save them
+    initialFriends.forEach((friend, index) => {
+      if (!friend.id) friend.id = index + 1;
+    });
+    localStorage.setItem('friends', JSON.stringify(initialFriends));
+    return initialFriends;
+  });
   const [isOpen, setIsOpen] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -55,13 +67,16 @@ export default function Friends() {
       return;
     }
     const newFriend = {
+      id: Date.now(), // Add unique ID
       name: form.name.trim(),
       icon: form.icon.trim() || `https://i.pravatar.cc/150?u=${Date.now()}`,
       lastSong: form.lastSong.trim() || "—",
       email: form.email.trim(),
       phone: form.phone.trim() || "",
     };
-    setFriends((cur) => [newFriend, ...cur]);
+    const updatedFriends = [newFriend, ...friends];
+    setFriends(updatedFriends);
+    localStorage.setItem('friends', JSON.stringify(updatedFriends));
     setIsOpen(false);
   };
 

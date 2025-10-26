@@ -7,6 +7,10 @@ function PreviousSongs() {
   const [selectedSongs, setSelectedSongs] = useState(new Set())
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [favoriteIds, setFavoriteIds] = useState(new Set())
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [shareTarget, setShareTarget] = useState('email') // 'email' or 'friend'
+  const [shareEmail, setShareEmail] = useState('')
+  const [shareFriend, setShareFriend] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -71,6 +75,45 @@ function PreviousSongs() {
       return newSet
     })
     setSelectedSongs(new Set())
+  }
+
+  const handleShare = () => {
+    if (selectedSongs.size === 0) return
+    setShowShareModal(true)
+  }
+
+  const shareSelectedSongs = () => {
+    const selectedSongData = previousUploads.filter(song => selectedSongs.has(song.id))
+    
+    if (shareTarget === 'email') {
+      // Create a mailto link with song data
+      const subject = encodeURIComponent(`Shared Songs from Cadence AI`)
+      const body = encodeURIComponent(
+        `I wanted to share these songs with you:\n\n${selectedSongData.map(song => 
+          `- ${song.name} (Uploaded: ${song.uploadDate})\n  Original: ${song.originalLyrics?.[0]?.text || 'N/A'}\n  Translated: ${song.translatedLyrics?.[0]?.text || 'N/A'}`
+        ).join('\n\n')}`
+      )
+      window.location.href = `mailto:${shareEmail}?subject=${subject}&body=${body}`
+      alert(`Opening email client to share with ${shareEmail}!`)
+    } else if (shareTarget === 'friend') {
+      // Load friends from localStorage
+      const friends = JSON.parse(localStorage.getItem('friends') || '[]')
+      const friend = friends.find(f => f.name === shareFriend)
+      
+      if (friend) {
+        // Add songs to friend's shared songs list
+        const sharedSongs = JSON.parse(localStorage.getItem(`sharedWith_${friend.id}`) || '[]')
+        const updatedShared = [...sharedSongs, ...selectedSongData]
+        localStorage.setItem(`sharedWith_${friend.id}`, JSON.stringify(updatedShared))
+        alert(`Successfully shared ${selectedSongs.size} song(s) with ${shareFriend}!`)
+      }
+    }
+    
+    // Don't close modal automatically - let user click X
+    // Clear form instead
+    setShareEmail('')
+    setShareFriend('')
+    setSelectedSongs(new Set()) // Clear selection after sharing
   }
 
   // Filter songs based on showFavoritesOnly
@@ -142,7 +185,16 @@ function PreviousSongs() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                     </svg>
-                    Add to Favorites ({selectedSongs.size})
+                    Add to Favorites
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.885 12.938 9 12.482 9 12c0-.482-.115-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                    Share ({selectedSongs.size})
                   </button>
                   <button
                     onClick={deleteSelectedSongs}
@@ -151,7 +203,7 @@ function PreviousSongs() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
-                    Delete ({selectedSongs.size})
+                    Delete
                   </button>
                 </>
               )}
@@ -217,6 +269,100 @@ function PreviousSongs() {
           </div>
         </div>
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 relative">
+            <button
+              onClick={() => {
+                setShowShareModal(false)
+                setShareEmail('')
+                setShareFriend('')
+              }}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h2 className="text-2xl font-bold mb-4">Share Songs</h2>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Share via:</label>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShareTarget('email')}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+                    shareTarget === 'email' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Email
+                </button>
+                <button
+                  onClick={() => setShareTarget('friend')}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+                    shareTarget === 'friend' 
+                      ? 'bg-purple-500 text-white' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Friend
+                </button>
+              </div>
+            </div>
+
+            {shareTarget === 'email' ? (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email address:</label>
+                <input
+                  type="email"
+                  value={shareEmail}
+                  onChange={(e) => setShareEmail(e.target.value)}
+                  placeholder="friend@example.com"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            ) : (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select friend:</label>
+                <select
+                  value={shareFriend}
+                  onChange={(e) => setShareFriend(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">Choose a friend...</option>
+                  {JSON.parse(localStorage.getItem('friends') || '[]').map(friend => (
+                    <option key={friend.id} value={friend.name}>{friend.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={shareSelectedSongs}
+                disabled={(shareTarget === 'email' && !shareEmail) || (shareTarget === 'friend' && !shareFriend)}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-colors"
+              >
+                Share
+              </button>
+              <button
+                onClick={() => {
+                  setShowShareModal(false)
+                  setShareEmail('')
+                  setShareFriend('')
+                }}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
