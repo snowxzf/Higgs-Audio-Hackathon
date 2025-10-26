@@ -308,13 +308,44 @@ function HomePage() {
           if (translated_transcription) {
             // Extract clean translation and reasoning from LLM output
             const { cleanTranslation, reasoning } = extractCleanTranslation(translated_transcription);
-            translatedLyrics = createTimedLyrics(cleanTranslation, duration || 12);
+            
+            // Use the SAME timing structure as original, just swap the text
+            // Split translated text by sentences
+            const translatedSentences = cleanTranslation
+              .replace(/\n+/g, ' ')
+              .split(/(?<=[.!?])\s+/)
+              .filter(s => s.trim().length > 0)
+              .map(s => s.trim());
+            
+            // Map translated sentences to original timing
+            translatedLyrics = originalLyrics.map((lyric, index) => {
+              const translatedText = translatedSentences[index] || `[${translatedLanguage} translation]`;
+              return {
+                ...lyric, // Keep the same timing (start, end, duration)
+                text: translatedText
+              };
+            });
+            
             setAnalysisText(reasoning);
           } else if (translatedLanguage !== currentLanguage) {
             try {
               // Simple translation using a basic approach
               const translatedText = await translateText(transcription, currentLanguage, translatedLanguage);
-              translatedLyrics = createTimedLyrics(translatedText, duration || 12);
+              
+              // Use the SAME timing structure as original
+              const translatedSentences = translatedText
+                .replace(/\n+/g, ' ')
+                .split(/(?<=[.!?])\s+/)
+                .filter(s => s.trim().length > 0)
+                .map(s => s.trim());
+              
+              translatedLyrics = originalLyrics.map((lyric, index) => {
+                const translatedText = translatedSentences[index] || `[${translatedLanguage} translation]`;
+                return {
+                  ...lyric, // Keep the same timing
+                  text: translatedText
+                };
+              });
             } catch (translationError) {
               console.log('Translation failed, using original lyrics:', translationError);
               // If translation fails, show placeholder text
