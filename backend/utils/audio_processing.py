@@ -19,7 +19,7 @@ def convert_mp3_to_wav(mp3_path):
         raise FileNotFoundError(f"Input file not found: {mp3_path}")
     
     wav_path = mp3_path.rsplit(".", 1)[0] + ".wav"
-    print(f"Converting {mp3_path} to {wav_path}")
+    print(f"Converting {mp3_path} to {wav_path}", file=sys.stderr)
     AudioSegment.from_mp3(mp3_path).export(wav_path, format="wav")
     return wav_path
 
@@ -31,7 +31,7 @@ def separate_with_demucs(wav_path):
     if not os.path.exists(wav_path):
         raise FileNotFoundError(f"WAV file not found: {wav_path}")
     
-    print(f"Separating audio with Demucs: {wav_path}")
+    print(f"Separating audio with Demucs: {wav_path}", file=sys.stderr)
     
     # Create a temporary directory for Demucs output
     temp_output_dir = os.path.join(OUTPUT_DIR, "temp")
@@ -42,7 +42,7 @@ def separate_with_demucs(wav_path):
         models_to_try = ["htdemucs", "mdx_extra", "mdx_q"]
         
         for model_name in models_to_try:
-            print(f"Trying Demucs model: {model_name}")
+            print(f"Trying Demucs model: {model_name}", file=sys.stderr)
             try:
                 result = subprocess.run([
                     "demucs",
@@ -57,9 +57,9 @@ def separate_with_demucs(wav_path):
                 break
                 
             except subprocess.CalledProcessError as e:
-                print(f"Demucs error with {model_name}: {e}")
+                print(f"Demucs error with {model_name}: {e}", file=sys.stderr)
                 if "torchcodec" in str(e.stderr).lower():
-                    print(f"TorchCodec issue with {model_name}, trying next model...")
+                    print(f"TorchCodec issue with {model_name}, trying next model...", file=sys.stderr)
                     continue
                 else:
                     raise e
@@ -68,7 +68,7 @@ def separate_with_demucs(wav_path):
                 continue
         
     except Exception as e:
-        print(f"All Demucs models failed: {e}")
+        print(f"All Demucs models failed: {e}", file=sys.stderr)
         # Even if Demucs fails to save, the processing might have worked
         # Let's check if the files were created
         
@@ -91,7 +91,7 @@ def separate_with_demucs(wav_path):
     
     # Check if files exist, if not, try alternative approach
     if not vocals_path or not accompaniment_path or not os.path.exists(vocals_path) or not os.path.exists(accompaniment_path):
-        print("Demucs files not found, trying alternative approach...")
+        print("Demucs files not found, trying alternative approach...", file=sys.stderr)
         return separate_with_alternative_method(wav_path)
     
     # Move files to final output directory
@@ -105,8 +105,8 @@ def separate_with_demucs(wav_path):
     subprocess.run(["cp", vocals_path, final_vocals_path], check=True)
     subprocess.run(["cp", accompaniment_path, final_accompaniment_path], check=True)
     
-    print(f"Vocals saved to: {final_vocals_path}")
-    print(f"Background music saved to: {final_accompaniment_path}")
+    print(f"Vocals saved to: {final_vocals_path}", file=sys.stderr)
+    print(f"Background music saved to: {final_accompaniment_path}", file=sys.stderr)
     
     return final_vocals_path, final_accompaniment_path
 
@@ -114,7 +114,7 @@ def separate_with_alternative_method(wav_path):
     """
     Try to use Demucs with different output formats to avoid TorchCodec issues.
     """
-    print("Trying Demucs with different output formats...")
+    print("Trying Demucs with different output formats...", file=sys.stderr)
     
     base_name = os.path.splitext(os.path.basename(wav_path))[0]
     final_output_dir = os.path.join(OUTPUT_DIR, "final")
@@ -145,10 +145,10 @@ def separate_with_alternative_method(wav_path):
     ]
     
     for approach in approaches:
-        print(f"Trying: {approach['name']}")
+        print(f"Trying: {approach['name']}", file=sys.stderr)
         try:
             result = subprocess.run(approach["cmd"], check=True, capture_output=True, text=True, timeout=300)
-            print(f"Success with {approach['name']}!")
+            print(f"Success with {approach['name']}!", file=sys.stderr)
             
             # Look for output files
             if "--mp3" in approach["cmd"]:
@@ -165,8 +165,8 @@ def separate_with_alternative_method(wav_path):
                     subprocess.run(["ffmpeg", "-i", vocals_file, vocals_path, "-y"], check=True)
                     subprocess.run(["ffmpeg", "-i", accompaniment_file, accompaniment_path, "-y"], check=True)
                     
-                    print(f"Vocals saved to: {vocals_path}")
-                    print(f"Background music saved to: {accompaniment_path}")
+                    print(f"Vocals saved to: {vocals_path}", file=sys.stderr)
+                    print(f"Background music saved to: {accompaniment_path}", file=sys.stderr)
                     return vocals_path, accompaniment_path
             
             else:
@@ -178,8 +178,8 @@ def separate_with_alternative_method(wav_path):
                     subprocess.run(["cp", vocals_file, vocals_path], check=True)
                     subprocess.run(["cp", accompaniment_file, accompaniment_path], check=True)
                     
-                    print(f"Vocals saved to: {vocals_path}")
-                    print(f"Background music saved to: {accompaniment_path}")
+                    print(f"Vocals saved to: {vocals_path}", file=sys.stderr)
+                    print(f"Background music saved to: {accompaniment_path}", file=sys.stderr)
                     return vocals_path, accompaniment_path
             
         except subprocess.CalledProcessError as e:
@@ -206,8 +206,8 @@ def separate_with_alternative_method(wav_path):
         ], check=True)
         
         print(f"Center channel extraction completed")
-        print(f"Vocals saved to: {vocals_path}")
-        print(f"Background music saved to: {accompaniment_path}")
+        print(f"Vocals saved to: {vocals_path}", file=sys.stderr)
+        print(f"Background music saved to: {accompaniment_path}", file=sys.stderr)
         return vocals_path, accompaniment_path
         
     except Exception as e:
@@ -219,8 +219,8 @@ def separate_with_alternative_method(wav_path):
     subprocess.run(["cp", wav_path, accompaniment_path], check=True)
     
     print(f"Note: Using original audio as fallback")
-    print(f"Vocals saved to: {vocals_path}")
-    print(f"Background music saved to: {accompaniment_path}")
+    print(f"Vocals saved to: {vocals_path}", file=sys.stderr)
+    print(f"Background music saved to: {accompaniment_path}", file=sys.stderr)
     
     return vocals_path, accompaniment_path
 
@@ -229,7 +229,7 @@ def transcribe_vocals(vocals_path):
     if not os.path.exists(vocals_path):
         raise FileNotFoundError(f"Vocals file not found: {vocals_path}")
     
-    print(f"Transcribing vocals: {vocals_path}")
+    print(f"Transcribing vocals: {vocals_path}", file=sys.stderr)
     
     # Try the robust transcription method
     try:

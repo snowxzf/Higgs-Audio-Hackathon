@@ -1,6 +1,7 @@
 import base64
 import os
 import subprocess
+import sys
 from boson_client import client
 
 def encode_audio(file_path: str) -> str:
@@ -103,11 +104,11 @@ def transcribe_long_audio(file_path: str, max_tokens=4096, max_chunk_duration=90
 
 def transcribe_audio(file_path: str, max_tokens=4096):
     """Transcribe an audio file using multiple fallback methods."""
-    print(f"🎤 Transcribing audio: {file_path}")
+    print(f"🎤 Transcribing audio: {file_path}", file=sys.stderr)
     
     # Method 1: Try Higgs Audio Understanding
     try:
-        print("📝 Method 1: Trying Higgs Audio Understanding...")
+        print("📝 Method 1: Trying Higgs Audio Understanding...", file=sys.stderr)
         audio_b64 = encode_audio(file_path)
         fmt = file_path.split(".")[-1].lower()
 
@@ -135,11 +136,11 @@ def transcribe_audio(file_path: str, max_tokens=4096):
             raise Exception("Empty transcription result")
             
     except Exception as e:
-        print(f"❌ Higgs Audio Understanding failed: {e}")
+        print(f"❌ Higgs Audio Understanding failed: {e}", file=sys.stderr)
     
     # Method 2: Try Whisper via Boson AI
     try:
-        print("📝 Method 2: Trying Whisper via Boson AI...")
+        print("📝 Method 2: Trying Whisper via Boson AI...", file=sys.stderr)
         audio_b64 = encode_audio(file_path)
         fmt = file_path.split(".")[-1].lower()
 
@@ -167,11 +168,11 @@ def transcribe_audio(file_path: str, max_tokens=4096):
             raise Exception("Empty transcription result")
             
     except Exception as e:
-        print(f"❌ Whisper transcription failed: {e}")
+        print(f"❌ Whisper transcription failed: {e}", file=sys.stderr)
     
     # Method 3: Try local Whisper (if available)
     try:
-        print("📝 Method 3: Trying local Whisper...")
+        print("📝 Method 3: Trying local Whisper...", file=sys.stderr)
         import whisper
         
         model = whisper.load_model("base")
@@ -179,7 +180,7 @@ def transcribe_audio(file_path: str, max_tokens=4096):
         transcription = result["text"].strip()
         
         if transcription and len(transcription) > 10:
-            print("✅ Local Whisper successful!")
+            print("✅ Local Whisper successful!", file=sys.stderr)
             return transcription
         else:
             print("⚠️ Local Whisper returned empty/short result")
@@ -188,14 +189,14 @@ def transcribe_audio(file_path: str, max_tokens=4096):
     except ImportError:
         print("⚠️ Local Whisper not available (pip install openai-whisper)")
     except Exception as e:
-        print(f"❌ Local Whisper failed: {e}")
+        print(f"❌ Local Whisper failed: {e}", file=sys.stderr)
     
     # Method 4: Fallback - return a placeholder with file info
-    print("📝 Method 4: Using fallback transcription...")
+    print("📝 Method 4: Using fallback transcription...", file=sys.stderr)
     duration = get_audio_duration(file_path)
     fallback_text = f"[AUDIO TRANSCRIPTION NEEDED]\nFile: {os.path.basename(file_path)}\nDuration: {duration:.1f} seconds\n\nThis audio file needs manual transcription or the transcription service needs to be fixed.\n\nFor now, you can use this placeholder text for testing the translation pipeline."
     
-    print("⚠️ All transcription methods failed, using fallback")
+    print("⚠️ All transcription methods failed, using fallback", file=sys.stderr)
     return fallback_text
 
 def clean_transcription_output(text):

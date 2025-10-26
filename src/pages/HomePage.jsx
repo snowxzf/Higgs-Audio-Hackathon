@@ -14,6 +14,11 @@ function HomePage() {
   const [audioContext, setAudioContext] = useState(null);
   const [analyser, setAnalyser] = useState(null);
   const [showLogoPopup, setShowLogoPopup] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processedData, setProcessedData] = useState(null);
+  const [originalLyrics, setOriginalLyrics] = useState([]);
+  const [translatedLyrics, setTranslatedLyrics] = useState([]);
+  const [detectedLanguage, setDetectedLanguage] = useState('Unknown');
   const audioRef = useRef(null);
   const fileInputRef = useRef(null);
   const animationFrameRef = useRef(null);
@@ -39,19 +44,123 @@ function HomePage() {
     'Telugu', 'Marathi', 'Gujarati', 'Punjabi', 'Malayalam', 'Kannada',
   ];
 
-  const originalLyrics = [
-    { text: "Welcome to the audio translation app", startTime: 0, endTime: 3 },
-    { text: "Upload your favorite songs", startTime: 3, endTime: 6 },
-    { text: "And see them translated in real time", startTime: 6, endTime: 9 },
-    { text: "Enjoy music in any language", startTime: 9, endTime: 12 },
-  ];
-
-  const translatedLyrics = [
-    { text: "Bienvenido a la aplicación de traducción de audio", startTime: 0, endTime: 3 },
-    { text: "Sube tus canciones favoritas", startTime: 3, endTime: 6 },
-    { text: "Y véalas traducidas en tiempo real", startTime: 6, endTime: 9 },
-    { text: "Disfruta de la música en cualquier idioma", startTime: 9, endTime: 12 },
-  ];
+  // Process audio file using real transcription API
+  const processAudioFile = async (file) => {
+    setIsProcessing(true);
+    try {
+      console.log(`Processing audio file: ${file.name}`);
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Try to call the backend API first
+      try {
+        const response = await fetch('http://localhost:8000/process-audio', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Backend API response:', data);
+          
+          if (data.lyrics) {
+            setDetectedLanguage(data.lyrics.detected_language || 'Unknown');
+            setOriginalLyrics(data.lyrics.original_lyrics || []);
+            setTranslatedLyrics(data.lyrics.translated_lyrics || []);
+            setCurrentLanguage(data.lyrics.detected_language || 'Unknown');
+            return;
+          }
+        }
+      } catch (apiError) {
+        console.log('Backend API not available, using direct transcription:', apiError.message);
+      }
+      
+      // Fallback: Call Python transcription directly via a simple endpoint
+      // This will use the actual transcription functions from your backend
+      const formDataWithLanguages = new FormData();
+      formDataWithLanguages.append('file', file);
+      formDataWithLanguages.append('inputLanguage', currentLanguage);
+      formDataWithLanguages.append('outputLanguage', translatedLanguage);
+      
+      const transcriptionResponse = await fetch('http://localhost:3001/api/transcribe', {
+        method: 'POST',
+        body: formDataWithLanguages,
+        // Increase timeout to handle long transcription times
+        signal: AbortSignal.timeout(300000), // 5 minutes timeout
+      });
+      
+      if (transcriptionResponse.ok) {
+        const transcriptionData = await transcriptionResponse.json();
+        console.log('Direct transcription response:', transcriptionData);
+        
+        // Process the transcription data
+        const { transcription, detectedLanguage, duration } = transcriptionData;
+        
+        if (transcription && transcription !== "TRANSCRIPTION_FAILED") {
+          // Create synchronized lyrics
+          const createTimedLyrics = (text, duration) => {
+            const lines = text.split('\n').filter(line => line.trim());
+            if (!lines.length) return [];
+            
+            const timePerLine = duration / lines.length;
+            return lines.map((line, i) => ({
+              text: line.trim(),
+              start: i * timePerLine,
+              end: (i + 1) * timePerLine,
+              duration: timePerLine
+            }));
+          };
+          
+          const originalLyrics = createTimedLyrics(transcription, duration || 12);
+          
+          // For now, use the same lyrics for translation (you can add translation later)
+          const translatedLyrics = originalLyrics; // This would be replaced with actual translation
+          
+          setDetectedLanguage(currentLanguage);
+          setOriginalLyrics(originalLyrics);
+          setTranslatedLyrics(translatedLyrics);
+          setCurrentLanguage(currentLanguage);
+          
+          console.log('Transcription completed:', {
+            inputLanguage: currentLanguage,
+            outputLanguage: translatedLanguage,
+            originalLyrics: originalLyrics.length,
+            duration: duration
+          });
+        } else {
+          throw new Error('Transcription failed');
+        }
+      } else {
+        throw new Error('Transcription API failed');
+      }
+      
+    } catch (error) {
+      console.error('Error processing audio:', error);
+      
+      // Check if it's a timeout error
+      let errorMessage = "Error: Could not transcribe audio";
+      if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
+        errorMessage = "Processing timed out - audio may be too long";
+      } else if (error.message.includes('Failed to fetch')) {
+        errorMessage = "Cannot connect to transcription server";
+      }
+      
+      // Final fallback: Show error message
+      const errorLyrics = [
+        { text: errorMessage, start: 0, end: 3, duration: 3 },
+        { text: "Please check your file format", start: 3, end: 6, duration: 3 },
+        { text: "Supported: MP3, WAV, M4A", start: 6, end: 9, duration: 3 },
+      ];
+      
+      setDetectedLanguage('Error');
+      setOriginalLyrics(errorLyrics);
+      setTranslatedLyrics(errorLyrics);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   // Check if this is the first visit
   useEffect(() => {
@@ -130,7 +239,7 @@ function HomePage() {
     }
   }, [isPlaying]);
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (file && file.type.startsWith('audio/')) {
       setUploadedFile(file);
@@ -147,6 +256,9 @@ function HomePage() {
 
       const existingUploads = JSON.parse(localStorage.getItem('uploadedSongs') || '[]');
       localStorage.setItem('uploadedSongs', JSON.stringify([newUpload, ...existingUploads]));
+
+      // Process the audio file with the backend
+      await processAudioFile(file);
     }
   };
 
@@ -173,7 +285,7 @@ function HomePage() {
     fileInputRef.current.click();
   };
 
-  const isLyricActive = (lyric) => currentTime >= lyric.startTime && currentTime < lyric.endTime;
+  const isLyricActive = (lyric) => currentTime >= lyric.start && currentTime < lyric.end;
 
   const LanguageSelector = ({ label, value, onChange, isOpen, toggleOpen }) => (
     <div className="relative">
@@ -347,47 +459,63 @@ function HomePage() {
 
         {uploadedFile && (
           <div className="w-full max-w-6xl mb-12">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
-                <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-purple-600 pb-2">
-                  Original ({currentLanguage})
-                </h3>
-                <div className="space-y-4">
-                  {originalLyrics.map((lyric, index) => (
-                    <p
-                      key={index}
-                      className={`text-lg transition-all duration-300 ${
-                        isLyricActive(lyric)
-                          ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
-                          : 'text-gray-600'
-                      }`}
-                    >
-                      {lyric.text}
-                    </p>
-                  ))}
-                </div>
+            {isProcessing ? (
+              <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-8 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Processing Audio...</h3>
+                <p className="text-gray-600">Separating vocals, transcribing lyrics, and translating... (This may take 2-5 minutes)</p>
               </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-6">
+                <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-purple-600 pb-2">
+                    Original ({detectedLanguage || currentLanguage})
+                  </h3>
+                  <div className="space-y-4">
+                    {originalLyrics.length > 0 ? (
+                      originalLyrics.map((lyric, index) => (
+                        <p
+                          key={index}
+                          className={`text-lg transition-all duration-300 ${
+                            isLyricActive(lyric)
+                              ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
+                              : 'text-gray-600'
+                          }`}
+                        >
+                          {lyric.text}
+                        </p>
+                      ))
+                    ) : (
+                      <p className="text-gray-500 italic">No lyrics available</p>
+                    )}
+                  </div>
+                </div>
 
-              <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
-                <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-green-500 pb-2">
-                  Translated ({translatedLanguage})
-                </h3>
-                <div className="space-y-4">
-                  {translatedLyrics.map((lyric, index) => (
-                    <p
-                      key={index}
-                      className={`text-lg transition-all duration-300 ${
-                        isLyricActive(lyric)
-                          ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
-                          : 'text-gray-600'
-                      }`}
-                    >
-                      {lyric.text}
-                    </p>
-                  ))}
+                <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-green-500 pb-2">
+                    Translated (English)
+                  </h3>
+                  <div className="space-y-4">
+                    {translatedLyrics.length > 0 ? (
+                      translatedLyrics.map((lyric, index) => (
+                        <p
+                          key={index}
+                          className={`text-lg transition-all duration-300 ${
+                            isLyricActive(lyric)
+                              ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
+                              : 'text-gray-600'
+                          }`}
+                        >
+                          {lyric.text}
+                        </p>
+                      ))
+                    ) : (
+                      <p className="text-gray-500 italic">No translation available</p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>
