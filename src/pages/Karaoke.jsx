@@ -27,13 +27,20 @@ function Karaoke() {
   const [currentLanguage, setCurrentLanguage] = useState('English');
   const [translatedLanguage, setTranslatedLanguage] = useState('Spanish');
   const [hasLyrics, setHasLyrics] = useState(false);
+  
+  // Background audio control state
+  const [backgroundUrl, setBackgroundUrl] = useState(null);
+  const [isBackgroundPlaying, setIsBackgroundPlaying] = useState(false);
+  const [shouldPlayDuringRecording, setShouldPlayDuringRecording] = useState(false);
+  const backgroundAudioRef = useRef(null);
 
-  // Load lyrics from localStorage on component mount
+  // Load lyrics and background audio from localStorage on component mount
   useEffect(() => {
     const storedOriginalLyrics = JSON.parse(localStorage.getItem('originalLyrics') || '[]');
     const storedTranslatedLyrics = JSON.parse(localStorage.getItem('translatedLyrics') || '[]');
     const storedCurrentLanguage = localStorage.getItem('currentLanguage') || 'English';
     const storedTranslatedLanguage = localStorage.getItem('translatedLanguage') || 'Spanish';
+    const storedBackgroundUrl = localStorage.getItem('backgroundUrl');
     
     if (storedOriginalLyrics.length > 0) {
       setOriginalLyrics(storedOriginalLyrics);
@@ -41,6 +48,11 @@ function Karaoke() {
       setCurrentLanguage(storedCurrentLanguage);
       setTranslatedLanguage(storedTranslatedLanguage);
       setHasLyrics(true);
+      
+      // Load background audio URL if available
+      if (storedBackgroundUrl) {
+        setBackgroundUrl(storedBackgroundUrl);
+      }
     } else {
       setHasLyrics(false);
     }
@@ -155,12 +167,26 @@ function Karaoke() {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
+      
+      // Stop background music if playing
+      if (backgroundAudioRef.current && isBackgroundPlaying) {
+        backgroundAudioRef.current.pause();
+        backgroundAudioRef.current.currentTime = 0; // Reset to start
+        setIsBackgroundPlaying(false);
+      }
+      
       setIsRecording(false);
       setBgGradient('from-gray-900 via-gray-800 to-gray-900');
       setTargetGradient('from-gray-900 via-gray-800 to-gray-900');
     } else {
       // Start recording
       try {
+        // Play background music if enabled
+        if (shouldPlayDuringRecording && backgroundAudioRef.current) {
+          backgroundAudioRef.current.play();
+          setIsBackgroundPlaying(true);
+        }
+        
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
 
@@ -221,10 +247,68 @@ function Karaoke() {
       <div className="relative z-30 bg-white">
         <Navbar />
       </div>
+      
+      {/* Background Music Controls - Top Right Corner */}
+      {backgroundUrl && hasLyrics && (
+        <div className="absolute top-32 right-8 z-20">
+          <h4 className="text-sm font-semibold text-white mb-3">Instrumental Settings</h4>
+          
+          {/* Listen to instrumental button */}
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <span className="text-sm text-white">Listen to instrumental</span>
+            <button
+              onClick={() => {
+                if (backgroundAudioRef.current) {
+                  if (isBackgroundPlaying) {
+                    backgroundAudioRef.current.pause();
+                    backgroundAudioRef.current.currentTime = 0;
+                    setIsBackgroundPlaying(false);
+                  } else {
+                    backgroundAudioRef.current.play();
+                    setIsBackgroundPlaying(true);
+                  }
+                }
+              }}
+              className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-colors flex-shrink-0"
+              title={isBackgroundPlaying ? 'Pause instrumental' : 'Play instrumental'}
+            >
+              {isBackgroundPlaying ? (
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="6" y="4" width="4" height="16" />
+                  <rect x="14" y="4" width="4" height="16" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              )}
+            </button>
+          </div>
+          
+          {/* Play during recording toggle */}
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-white">Play during recording</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={shouldPlayDuringRecording}
+                onChange={(e) => setShouldPlayDuringRecording(e.target.checked)}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+            </label>
+          </div>
+        </div>
+      )}
 
       {/* Visualizer Area */}
       <div className="relative flex items-center justify-center" style={{ height: 'calc(100vh - 80px)' }}>
         <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full z-0" />
+        
+        {/* Hidden audio element for background music */}
+        {backgroundUrl && (
+          <audio ref={backgroundAudioRef} src={backgroundUrl} />
+        )}
 
         {!hasLyrics ? (
           /* Welcome Screen - Show when no lyrics uploaded */
