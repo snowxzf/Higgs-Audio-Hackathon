@@ -164,6 +164,7 @@ function HomePage() {
     const storedVocalsUrl = localStorage.getItem('vocalsUrl');
     const storedBackgroundUrl = localStorage.getItem('backgroundUrl');
     const storedUploadedFileName = localStorage.getItem('uploadedFileName');
+    const storedAudioUrl = localStorage.getItem('audioUrl');
     
     if (storedOriginalLyrics.length > 0) {
       setOriginalLyrics(storedOriginalLyrics);
@@ -181,7 +182,8 @@ function HomePage() {
         };
         setUploadedFile(dummyFile);
         
-        // Restore audio URL if available
+        // Restore audio URLs if available
+        if (storedAudioUrl) setAudioUrl(storedAudioUrl);
         if (storedVocalsUrl) setVocalsUrl(storedVocalsUrl);
         if (storedBackgroundUrl) setBackgroundUrl(storedBackgroundUrl);
       }
@@ -528,6 +530,9 @@ function HomePage() {
       setUploadedFile(file);
       const url = URL.createObjectURL(file);
       setAudioUrl(url);
+      
+      // Save audioUrl to localStorage for playback
+      localStorage.setItem('audioUrl', url);
 
       // Save to localStorage for Previous Songs page
       const newUpload = {
@@ -545,14 +550,22 @@ function HomePage() {
     }
   };
 
-  const handlePlayPause = () => {
-    if (audioRef.current) {
+  const handlePlayPause = async () => {
+    console.log('handlePlayPause called. audioRef.current:', audioRef.current, 'audioUrl:', audioUrl, 'isPlaying:', isPlaying);
+    if (audioRef.current && audioUrl) {
+      try {
       if (isPlaying) {
         audioRef.current.pause();
+          setIsPlaying(false);
       } else {
-        audioRef.current.play();
+          await audioRef.current.play();
+          setIsPlaying(true);
+        }
+      } catch (error) {
+        console.error('Error playing audio:', error);
       }
-      setIsPlaying(!isPlaying);
+    } else {
+      console.error('Cannot play: audioRef or audioUrl missing');
     }
   };
 

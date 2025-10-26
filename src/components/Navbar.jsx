@@ -1,6 +1,5 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import cadenceIcon from '../assets/Cadence AI_gray.jpg';
 
 function Navbar() {
     const location = useLocation()
