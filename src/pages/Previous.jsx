@@ -44,9 +44,20 @@ function PreviousSongs() {
   }
 
   const handleSongClick = (song) => {
-    // Navigate back to home page with the selected song
-    // You can pass the song data via state
-    navigate('/', { state: { selectedSong: song } })
+    // Restore all the song data to localStorage so HomePage can display it
+    if (song.originalLyrics) localStorage.setItem('originalLyrics', JSON.stringify(song.originalLyrics));
+    if (song.translatedLyrics) localStorage.setItem('translatedLyrics', JSON.stringify(song.translatedLyrics));
+    if (song.currentLanguage) localStorage.setItem('currentLanguage', song.currentLanguage);
+    if (song.translatedLanguage) localStorage.setItem('translatedLanguage', song.translatedLanguage);
+    if (song.analysisText) localStorage.setItem('analysisText', song.analysisText);
+    if (song.audioUrl) localStorage.setItem('audioUrl', song.audioUrl);
+    if (song.vocalsUrl) localStorage.setItem('vocalsUrl', song.vocalsUrl);
+    if (song.backgroundUrl) localStorage.setItem('backgroundUrl', song.backgroundUrl);
+    if (song.detectedLanguage) localStorage.setItem('detectedLanguage', song.detectedLanguage);
+    localStorage.setItem('uploadedFileName', song.name);
+    
+    // Navigate to home page - it will automatically load from localStorage
+    navigate('/')
   }
 
   return (

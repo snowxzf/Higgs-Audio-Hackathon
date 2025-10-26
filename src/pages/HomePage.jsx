@@ -250,10 +250,50 @@ function HomePage() {
             let cleaned = text.replace(/\n+/g, ' ').trim();
             
             // Split on sentence boundaries, preserving the punctuation
-            const sentences = cleaned
+            let sentences = cleaned
               .split(/(?<=[.!?])\s+/)
               .filter(s => s.trim().length > 0)
               .map(s => s.trim());
+            
+            // Further split long sentences at commas or mid-sentence for better synchronization
+            const MAX_WORDS_PER_LINE = 12; // Maximum words per lyric line
+            const splitSentences = [];
+            
+            for (const sentence of sentences) {
+              const wordCount = sentence.split(/\s+/).length;
+              
+              if (wordCount > MAX_WORDS_PER_LINE) {
+                // Split long sentences intelligently
+                // First try to split at commas
+                const commaSplit = sentence.split(/(?<=,\s+)/);
+                
+                if (commaSplit.length > 1 && commaSplit.some(part => part.trim().split(/\s+/).length > MAX_WORDS_PER_LINE)) {
+                  // If commas don't help enough, split by word count
+                  const words = sentence.split(/\s+/);
+                  let currentLine = [];
+                  
+                  for (const word of words) {
+                    currentLine.push(word);
+                    
+                    if (currentLine.length >= MAX_WORDS_PER_LINE) {
+                      splitSentences.push(currentLine.join(' '));
+                      currentLine = [];
+                    }
+                  }
+                  
+                  if (currentLine.length > 0) {
+                    splitSentences.push(currentLine.join(' '));
+                  }
+                } else {
+                  // Use comma-based splitting
+                  splitSentences.push(...commaSplit.map(s => s.trim()).filter(s => s.length > 0));
+                }
+              } else {
+                splitSentences.push(sentence);
+              }
+            }
+            
+            sentences = splitSentences;
             
             if (!sentences.length) return [];
             
@@ -272,7 +312,7 @@ function HomePage() {
               // Make sure we don't exceed the total duration
               if (currentTime + sentenceDuration > duration) {
                 const remainingTime = duration - currentTime;
-                if (remainingTime > 0) {
+                if (remainingTime > 0 && sentence.length > 0) {
                   timedLyrics.push({
                     text: sentence,
                     start: currentTime,
@@ -283,12 +323,14 @@ function HomePage() {
                 break;
               }
               
-              timedLyrics.push({
-                text: sentence,
-                start: currentTime,
-                end: currentTime + sentenceDuration,
-                duration: sentenceDuration
-              });
+              if (sentence.length > 0) {
+                timedLyrics.push({
+                  text: sentence,
+                  start: currentTime,
+                  end: currentTime + sentenceDuration,
+                  duration: sentenceDuration
+                });
+              }
               
               currentTime += sentenceDuration;
             }
@@ -370,6 +412,28 @@ function HomePage() {
           localStorage.setItem('translatedLanguage', translatedLanguage);
           localStorage.setItem('analysisText', analysisText);
           localStorage.setItem('uploadedFileName', file.name);
+          
+          // Update the uploadedSongs entry with lyrics data for Previous Songs page
+          const existingUploads = JSON.parse(localStorage.getItem('uploadedSongs') || '[]');
+          const currentAudioUrl = localStorage.getItem('audioUrl'); // Get the blob URL from localStorage
+          const updatedUploads = existingUploads.map(upload => {
+            if (upload.name === file.name) {
+              return {
+                ...upload,
+                originalLyrics,
+                translatedLyrics,
+                currentLanguage,
+                translatedLanguage,
+                analysisText,
+                vocalsUrl: vocals_path ? `http://localhost:3001/api/audio/vocals/${vocals_path.split('/').pop()}` : null,
+                backgroundUrl: background_path ? `http://localhost:3001/api/audio/background/${background_path.split('/').pop()}` : null,
+                audioUrl: currentAudioUrl, // Keep the blob URL from localStorage
+                detectedLanguage
+              };
+            }
+            return upload;
+          });
+          localStorage.setItem('uploadedSongs', JSON.stringify(updatedUploads));
           
           console.log('✅ Transcript complete! originalLyrics length:', originalLyrics.length, 'isProcessing:', isProcessing);
           console.log('✅ Buttons should be ENABLED. originalLyrics.length > 0:', originalLyrics.length > 0);
