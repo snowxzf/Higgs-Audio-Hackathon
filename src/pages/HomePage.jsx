@@ -13,7 +13,7 @@ function HomePage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [audioContext, setAudioContext] = useState(null);
   const [analyser, setAnalyser] = useState(null);
-  const [showLogoPopup, setShowLogoPopup] = useState(false);
+  const [showLogoPopup, setShowLogoPopup] = useState(true);
   const audioRef = useRef(null);
   const fileInputRef = useRef(null);
   const animationFrameRef = useRef(null);
@@ -304,9 +304,8 @@ function HomePage() {
             placeholder="Cadence AI"
             value={userName}
             onChange={(e) => setUserName(e.target.value)}
-            className={`font-bold text-center bg-transparent border-none outline-none placeholder-black text-black transition-all duration-500 ${
-              uploadedFile ? 'text-xl' : 'text-3xl'
-            }`}
+            className={`font-bold text-center bg-transparent border-none outline-none placeholder-black text-black transition-all duration-500 ${uploadedFile ? 'text-xl' : 'text-3xl'
+              }`}
           />
         </div>
 
@@ -381,11 +380,10 @@ function HomePage() {
                   {originalLyrics.map((lyric, index) => (
                     <p
                       key={index}
-                      className={`text-lg transition-all duration-300 ${
-                        isLyricActive(lyric)
-                          ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
-                          : 'text-gray-600'
-                      }`}
+                      className={`text-lg transition-all duration-300 ${isLyricActive(lyric)
+                        ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
+                        : 'text-gray-600'
+                        }`}
                     >
                       {lyric.text}
                     </p>
@@ -401,11 +399,10 @@ function HomePage() {
                   {translatedLyrics.map((lyric, index) => (
                     <p
                       key={index}
-                      className={`text-lg transition-all duration-300 ${
-                        isLyricActive(lyric)
-                          ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
-                          : 'text-gray-600'
-                      }`}
+                      className={`text-lg transition-all duration-300 ${isLyricActive(lyric)
+                        ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
+                        : 'text-gray-600'
+                        }`}
                     >
                       {lyric.text}
                     </p>
@@ -436,7 +433,7 @@ function HomePage() {
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
               </svg>
-              <span className="font-semibold text-lg">Download Music</span>
+              <span className="font-semibold text-lg">Download Instrumental</span>
             </button>
           </div>
         )}
