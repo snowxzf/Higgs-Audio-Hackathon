@@ -11,8 +11,8 @@ from dotenv import load_dotenv
 # Add utils to path
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
-def translate_text(text, from_lang, to_lang):
-    """Translate text using a real translation API"""
+def translate_text(text, from_lang, to_lang, return_reasoning=False):
+    """Translate text using a real translation API. Returns clean translation and optionally reasoning."""
     try:
         # Import OpenAI client for translation
         import openai
@@ -29,17 +29,21 @@ def translate_text(text, from_lang, to_lang):
         # Create translation prompt
         translation_prompt = f"""You are a friendly, professional translator. Translate the following text from {from_lang} to {to_lang}.
         
-        IMPORTANT INSTRUCTIONS FOR YOUR REASONING:
-        - Think through the translation process in a friendly way
-        - Use second person ("you", "your") when referring to the reader
-        - Be conversational and approachable in your thinking
-        - Return ONLY the translated text in your final output
-        - Do NOT include any explanations, reasoning, or thinking in the final translation
-        - Just provide the clean translation
+        CRITICAL FORMATTING REQUIREMENTS:
+        
+        1. Put your thinking/analysis in <think>...</think> tags
+        2. After the </think> tag, provide ONLY the clean translation (no explanations, no reasoning)
+        3. In your thinking, use second person ("you", "your") when referring to the reader
+        4. Be conversational and approachable in your thinking
         
         Text to translate: {text}
         
-        Translation:"""
+        Output format:
+        <think>
+        [Your analysis of the translation here - be friendly and use "you" and "your"]
+        </think>
+        
+        [Only the final translated text here - no explanations, just the translation]"""
         
         # Call the translation API
         response = client.chat.completions.create(
@@ -67,9 +71,12 @@ def translate_text(text, from_lang, to_lang):
             # Also extract the reasoning for potential display
             reasoning_text = match.group(1).strip() if len(match.groups()) >= 1 and match.group(1) else ""
             
-            # Store both values (we'll return the clean translation but could also return reasoning)
+            # Store both values
             print(f"Translation successful: {from_lang} -> {to_lang}", file=sys.stderr)
             print(f"Clean translation extracted (length: {len(clean_translation)})", file=sys.stderr)
+            
+            if return_reasoning:
+                return clean_translation if clean_translation else "Translation not found in output", reasoning_text
             return clean_translation if clean_translation else "Translation not found in output"
         else:
             # No reasoning tags found, try to find just the clean text

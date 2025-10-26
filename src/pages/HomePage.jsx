@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import logo from '../assets/Cadence_AI.png';
 
 function HomePage() {
+  const navigate = useNavigate();
   const [uploadedFile, setUploadedFile] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [userName, setUserName] = useState('');
@@ -11,6 +13,7 @@ function HomePage() {
   const [translatedLanguage, setTranslatedLanguage] = useState('Spanish');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState({ current: false, translated: false });
   const [currentTime, setCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
   const [audioContext, setAudioContext] = useState(null);
   const [analyser, setAnalyser] = useState(null);
   const [showLogoPopup, setShowLogoPopup] = useState(false);
@@ -81,19 +84,9 @@ function HomePage() {
   const extractCleanTranslation = (fullText) => {
     if (!fullText) return { cleanTranslation: '', reasoning: '' };
     
-    // First try to match <think> tags
-    const thinkPattern = /<think>(.*?)<\/think>\s*(.*?)$/s;
+    // Look for <think>...</think> tags
+    const thinkPattern = /<think>(.*?)<\/think>\s*(.*)/s;
     let match = fullText.match(thinkPattern);
-    if (match) {
-      return {
-        cleanTranslation: match[2].trim(),
-        reasoning: match[1].trim()
-      };
-    }
-    
-    // Then try <think> tags
-    const reasoningPattern = /<think>(.*?)<\/redacted_reasoning>\s*(.*?)$/s;
-    match = fullText.match(reasoningPattern);
     if (match) {
       return {
         cleanTranslation: match[2].trim(),
@@ -337,6 +330,20 @@ function HomePage() {
     }
   }, [isPlaying]);
 
+  useEffect(() => {
+    if (audioRef.current) {
+      const handleLoadedMetadata = () => {
+        setAudioDuration(audioRef.current.duration);
+      };
+      audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
+      return () => {
+        if (audioRef.current) {
+          audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        }
+      };
+    }
+  }, [uploadedFile]);
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (file && file.type.startsWith('audio/')) {
@@ -371,16 +378,12 @@ function HomePage() {
     }
   };
 
-  const handleReplay = () => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play();
-      setIsPlaying(true);
-    }
+  const handleGoToKaraoke = () => {
+    navigate('/karaoke');
   };
-
-  const handleUploadAnother = () => {
-    fileInputRef.current.click();
+  
+  const handleGoHome = () => {
+    navigate('/');
   };
 
   const handleDownloadAudio = () => {
@@ -463,8 +466,8 @@ function HomePage() {
       )}
 
       {uploadedFile && (
-        <div className="absolute left-0 right-0 flex items-center justify-center opacity-40 pointer-events-none" style={{ top: '140px', height: '200px' }}>
-          <div className="flex items-center justify-center gap-1 h-48">
+        <div className="absolute left-0 right-0 flex items-center justify-center" style={{ top: '140px', height: '200px' }}>
+          <div className="flex items-center justify-center gap-1 h-48 opacity-40 pointer-events-none">
             {waveformBars.map((bar, i) => (
               <div
                 key={i}
@@ -476,23 +479,30 @@ function HomePage() {
               />
             ))}
           </div>
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
+          <div className="absolute inset-0 flex items-center justify-center z-10">
             <div className="flex items-center gap-4">
-              {/* Upload Another Button */}
+              {/* Blue Button (Left) - Go to Karaoke */}
               <button
-                onClick={handleUploadAnother}
-                className="bg-green-500 hover:bg-green-600 text-white p-4 rounded-full transition-colors shadow-lg"
-                title="Upload Another Song"
+                onClick={() => {
+                  console.log('Karaoke button clicked');
+                  handleGoToKaraoke();
+                }}
+                className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition-colors shadow-lg"
+                title="Go to Karaoke Page"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                 </svg>
               </button>
 
-              {/* Play/Pause Button */}
+              {/* Purple Button (Middle) - Play/Pause */}
               <button
-                onClick={handlePlayPause}
+                onClick={() => {
+                  console.log('Play/Pause button clicked');
+                  handlePlayPause();
+                }}
                 className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full transition-colors shadow-lg"
+                title="Play/Pause"
               >
                 {isPlaying ? (
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -505,14 +515,17 @@ function HomePage() {
                 )}
               </button>
 
-              {/* Replay Button */}
+              {/* Green Button (Right) - Go to Home */}
               <button
-                onClick={handleReplay}
-                className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition-colors shadow-lg"
-                title="Replay from Start"
+                onClick={() => {
+                  console.log('Home button clicked');
+                  handleGoHome();
+                }}
+                className="bg-green-500 hover:bg-green-600 text-white p-4 rounded-full transition-colors shadow-lg"
+                title="Go to Home"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
               </button>
             </div>
@@ -605,48 +618,48 @@ function HomePage() {
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
-                    <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-purple-600 pb-2">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-purple-600 pb-2">
                       Original ({detectedLanguage || currentLanguage})
-                    </h3>
-                    <div className="space-y-4">
+                </h3>
+                <div className="space-y-4">
                       {originalLyrics.length > 0 ? (
                         originalLyrics.map((lyric, index) => (
-                          <p
-                            key={index}
-                            className={`text-lg transition-all duration-300 ${
-                              isLyricActive(lyric)
-                                ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
-                                : 'text-gray-600'
-                            }`}
-                          >
-                            {lyric.text}
-                          </p>
+                    <p
+                      key={index}
+                      className={`text-lg transition-all duration-300 ${
+                        isLyricActive(lyric)
+                          ? 'text-purple-600 font-bold scale-105 bg-purple-50 p-2 rounded'
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      {lyric.text}
+                    </p>
                         ))
                       ) : (
                         <p className="text-gray-500 italic">No lyrics available</p>
                       )}
-                    </div>
-                  </div>
+                </div>
+              </div>
 
-                  <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
-                    <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-green-500 pb-2">
-                      Translated ({translatedLanguage})
-                    </h3>
-                    <div className="space-y-4">
+              <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg p-6">
+                <h3 className="text-xl font-bold mb-4 text-gray-800 border-b-2 border-green-500 pb-2">
+                  Translated ({translatedLanguage})
+                </h3>
+                <div className="space-y-4">
                       {translatedLyrics.length > 0 ? (
                         translatedLyrics.map((lyric, index) => (
-                          <p
-                            key={index}
-                            className={`text-lg transition-all duration-300 ${
-                              isLyricActive(lyric)
-                                ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
-                                : 'text-gray-600'
-                            }`}
-                          >
-                            {lyric.text}
-                          </p>
+                    <p
+                      key={index}
+                      className={`text-lg transition-all duration-300 ${
+                        isLyricActive(lyric)
+                          ? 'text-green-600 font-bold scale-105 bg-green-50 p-2 rounded'
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      {lyric.text}
+                    </p>
                         ))
                       ) : (
                         <p className="text-gray-500 italic">No translation available</p>
@@ -669,7 +682,7 @@ function HomePage() {
                 )}
               </div>
             )}
-          </div>
+            </div>
         )}
 
         {/* Download Buttons - Only shown when file is uploaded */}
@@ -688,7 +701,7 @@ function HomePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               <span className="font-semibold text-lg">
-                {isProcessing ? 'Processing...' : 'Download Audio'}
+                {isProcessing ? 'Processing...' : 'Download Vocals'}
               </span>
             </button>
 
