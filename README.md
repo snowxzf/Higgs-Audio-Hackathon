@@ -1,4 +1,4 @@
-# Cadence AI - Music Translation App
+# Cadence AI - Music Translation, Audio Separation, and Karaoke Website
 
 A web application for translating music lyrics across languages with real-time karaoke functionality.
 
