@@ -1,6 +1,12 @@
 # Cadence AI - Music Translation, Audio Separation, and Karaoke Website
 
 A web application for translating music lyrics across languages with real-time karaoke functionality.
+
+Demo: https://drive.google.com/file/d/1INPzNMAHzQ8v1DgS6fZ0tNBhsTqw-0ix/view?usp=sharing
+
+In-use (no audio in video): https://drive.google.com/file/d/1DHc6xZ31hZlOSXPGfBTnQ91jMCXJ9ZHm/view?usp=sharing
+
+
 NOTE: API key has expired since the hackathon, will not transcribe/analyze lyrics now.
 
 ## Prerequisites
