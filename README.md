@@ -2,7 +2,7 @@
 
 A web application for translating music lyrics across languages with real-time karaoke functionality.
 
-Demo: https://drive.google.com/file/d/1INPzNMAHzQ8v1DgS6fZ0tNBhsTqw-0ix/view?usp=sharing
+Demo: [https://drive.google.com/file/d/1INPzNMAHzQ8v1DgS6fZ0tNBhsTqw-0ix/view?usp=sharing](https://drive.google.com/file/d/1ZtT_Jk32fDerhkXQnIHz2iKJu2Zyv_2x/view)
 
 In-use (no audio in video): https://drive.google.com/file/d/1DHc6xZ31hZlOSXPGfBTnQ91jMCXJ9ZHm/view?usp=sharing
 
